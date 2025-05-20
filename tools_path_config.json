@@ -5,11 +5,11 @@
         },
         "database": {
             "database1": {
-                "host": "rm-bp1o6we7s3o1h76x1to.mysql.rds.aliyuncs.com",
+                "host": "localhost",
                 "port": 3306,
-                "user": "kai",
-                "password": "Abcd1234#",
-                "database": "data_prepared_test",
+                "user": "root",
+                "password": "root",
+                "database": "data_prepared",
                 "charset": "utf8mb4"
             },
             "database2": {
@@ -17,7 +17,7 @@
                 "port": 3306,
                 "user": "kai",
                 "password": "Abcd1234#",
-                "database": "full_data",
+                "database": "data_prepared",
                 "charset": "utf8mb4"
             }
         }
@@ -25,7 +25,7 @@
     "main_folder": [
         {
             "folder_type": "input_folder",
-            "path": "OneDrive\\Data_prepared_test",
+            "path": "Data_prepared",
             "disk": "D"
         },
         {
@@ -39,13 +39,13 @@
             "data_type": "input_indexcomponent",
             "folder_name": "data_index\\index_component",
             "folder_type": "input_folder",
-            "sql_sheet": "index_component"
+            "sql_sheet": "data_indexcomponent"
         },
         {
-            "data_type": "input_indexreturn",
-            "folder_name": "data_index\\index_return",
+            "data_type": "index_data",
+            "folder_name": "data_index\\index_data",
             "folder_type": "input_folder",
-            "sql_sheet": "index_return"
+            "sql_sheet": "data_index"
         },
         {
             "data_type": "input_indexreturn_realtime",
