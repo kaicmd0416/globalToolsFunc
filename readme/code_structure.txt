@@ -1,0 +1,297 @@
+global_tools.py 代码结构说明
+
+1. 基础工具函数
+   - readcsv(filepath, dtype=None, index_col=None)
+     输入: 
+       - filepath: str, CSV文件路径
+       - dtype: dict, 可选，指定列的数据类型
+       - index_col: int, 可选，指定索引列
+     输出: pandas.DataFrame, 读取的数据框
+
+   - move_specific_files(old_path, new_path, files_to_move=None)
+     输入:
+       - old_path: str, 源目录
+       - new_path: str, 目标目录
+       - files_to_move: list, 可选，要移动的文件列表
+     输出: None
+
+   - move_specific_files2(old_path, new_path)
+     输入:
+       - old_path: str, 源目录
+       - new_path: str, 目标目录
+     输出: None
+
+   - rr_score_processing(df_score)
+     输入:
+       - df_score: pandas.DataFrame, 包含valuation_date和code列的数据框
+     输出: pandas.DataFrame, 处理后的数据框，包含final_score列
+
+   - code_transfer(df)
+     输入:
+       - df: pandas.DataFrame, 包含code列的数据框
+     输出: pandas.DataFrame, 处理后的数据框，code列格式化为标准格式
+
+2. 因子名称相关函数
+   - factor_name_old()
+     输入: None
+     输出: tuple, (barra_name, industry_name)，包含旧版因子名称列表
+
+   - factor_name_new()
+     输入: None
+     输出: tuple, (barra_name, industry_name)，包含新版因子名称列表
+
+   - factor_name(inputpath_factor)
+     输入:
+       - inputpath_factor: str, 因子文件路径
+     输出: tuple, (barra_name, industry_name)，从文件中提取的因子名称列表
+
+3. 文件操作函数
+   - chunks(lst, n)
+     输入:
+       - lst: list, 要等分的列表
+       - n: int, 等分数量
+     输出: list, 等分后的列表
+
+   - file_withdraw(inputpath, available_date)
+     输入:
+       - inputpath: str, 输入路径
+       - available_date: str, 日期
+     输出: str, 文件路径
+
+   - folder_creator(inputpath)
+     输入:
+       - inputpath: str, 文件夹路径
+     输出: None
+
+   - folder_creator2(path)
+     输入:
+       - path: str, 目录路径
+     输出: None
+
+   - folder_creator3(file_path)
+     输入:
+       - file_path: str, 文件路径
+     输出: None
+
+4. 数据处理函数
+   - weight_sum_check(df)
+     输入:
+       - df: pandas.DataFrame, 包含weight列的数据框
+     输出: pandas.DataFrame, 处理后的数据框，权重和为1
+
+   - weight_sum_warning(df)
+     输入:
+       - df: pandas.DataFrame, 包含weight列的数据框
+     输出: None，打印警告信息
+
+   - stock_volatility_calculate(df, available_date)
+     输入:
+       - df: pandas.DataFrame, 包含valuation_date列的数据框
+       - available_date: str, 日期
+     输出: pandas.DataFrame, 计算后的数据框，包含波动率
+
+5. 数据读取函数
+   - data_reader(filepath, dtype=None, index_col=None)
+     输入:
+       - filepath: str, 文件路径
+       - dtype: dict, 可选，数据类型
+       - index_col: int, 可选，索引列
+     输出: pandas.DataFrame, 读取的数据框
+
+   - data_getting(path)
+     输入:
+       - path: str, 数据路径或SQL查询
+     输出: pandas.DataFrame, 获取的数据
+
+   - factor_universe_withdraw(type='new')
+     输入:
+       - type: str, 可选，类型（'new'或'old'）
+     输出: pandas.DataFrame, 股票池数据
+
+6. 日期处理函数
+   - Chinese_valuation_date()
+     输入: None
+     输出: pandas.DataFrame, 交易日期数据
+
+   - next_workday()
+     输入: None
+     输出: str, 下一个工作日
+
+   - last_workday()
+     输入: None
+     输出: str, 上一个工作日
+
+   - last_workday_calculate(x)
+     输入:
+       - x: str/datetime, 指定日期
+     输出: str, 上一个工作日
+
+   - next_workday_calculate(x)
+     输入:
+       - x: str/datetime, 指定日期
+     输出: str, 下一个工作日
+
+   - last_workday_calculate2(df_score)
+     输入:
+       - df_score: pandas.DataFrame, 包含date列的数据框
+     输出: pandas.DataFrame, 处理后的数据框
+
+   - is_workday(today)
+     输入:
+       - today: str, 日期
+     输出: bool, 是否为工作日
+
+   - working_days(df)
+     输入:
+       - df: pandas.DataFrame, 包含date列的数据框
+     输出: pandas.DataFrame, 处理后的数据框
+
+   - is_workday2()
+     输入: None
+     输出: bool, 今天是否为工作日
+
+   - intdate_transfer(date)
+     输入:
+       - date: str/datetime, 日期
+     输出: str, 整数格式日期
+
+   - strdate_transfer(date)
+     输入:
+       - date: str/datetime, 日期
+     输出: str, 字符串格式日期
+
+   - working_days_list(start_date, end_date)
+     输入:
+       - start_date: str, 开始日期
+       - end_date: str, 结束日期
+     输出: list, 工作日列表
+
+   - working_day_count(start_date, end_date)
+     输入:
+       - start_date: str, 开始日期
+       - end_date: str, 结束日期
+     输出: int, 工作日天数
+
+   - month_lastday()
+     输入: None
+     输出: list, 每月最后工作日列表
+
+   - last_weeks_lastday()
+     输入: None
+     输出: str, 上周最后工作日
+
+   - last_weeks_lastday2(date)
+     输入:
+       - date: str, 指定日期
+     输出: str, 上周最后工作日
+
+   - weeks_firstday(date)
+     输入:
+       - date: str, 日期
+     输出: str, 周第一个工作日
+
+   - next_weeks_lastday2(date)
+     输入:
+       - date: str, 日期
+     输出: str, 下周最后工作日
+
+7. 指数数据处理函数
+   - index_mapping(index_name, type='shortname')
+     输入:
+       - index_name: str, 指数中文名称
+       - type: str, 可选，返回类型
+     输出: str, 指数代码或简称
+
+   - index_weight_withdraw(index_type, available_date)
+     输入:
+       - index_type: str, 指数类型
+       - available_date: str, 日期
+     输出: pandas.DataFrame, 权重股数据
+
+   - crossSection_index_return_withdraw(index_type, available_date)
+     输入:
+       - index_type: str, 指数类型
+       - available_date: str, 日期
+     输出: float or None, 指数收益率
+
+   - crossSection_index_factorexposure_withdraw_new(index_type, available_date)
+     输入:
+       - index_type: str, 指数类型
+       - available_date: str, 日期
+     输出: pandas.DataFrame, 因子暴露数据
+
+   - timeSeries_index_return_withdraw()
+     输入: None
+     输出: pandas.DataFrame, 时间序列指数收益率数据
+
+8. 证券数据处理函数
+   - crossSection_stock_return_withdraw(available_date)
+     输入:
+       - available_date: str, 日期
+     输出: pandas.DataFrame, 股票收益率数据
+
+   - crossSection_etf_data_withdraw(available_date)
+     输入:
+       - available_date: str, 日期
+     输出: pandas.DataFrame, ETF数据
+
+   - crossSection_cb_data_withdraw(available_date)
+     输入:
+       - available_date: str, 日期
+     输出: pandas.DataFrame, 可转债数据
+
+9. 期权和期货数据处理函数
+   - crossSection_option_data_withdraw(available_date)
+     输入:
+       - available_date: str, 日期
+     输出: pandas.DataFrame, 期权数据
+
+   - crossSection_future_data_withdraw(available_date)
+     输入:
+       - available_date: str, 日期
+     输出: pandas.DataFrame, 期货数据
+
+10. 投资组合计算函数
+    - weight_df_standardization(df)
+      输入:
+        - df: pandas.DataFrame, 包含code列的数据框
+      输出: pandas.DataFrame, 标准化后的数据框
+
+    - option_df_standardization(df)
+      输入:
+        - df: pandas.DataFrame, 期权数据
+      输出: pandas.DataFrame, 标准化后的数据框
+
+    - future_df_standardization(df)
+      输入:
+        - df: pandas.DataFrame, 期货数据
+      输出: pandas.DataFrame, 标准化后的数据框
+
+    - etf_df_standardization(df)
+      输入:
+        - df: pandas.DataFrame, ETF数据
+      输出: pandas.DataFrame, 标准化后的数据框
+
+    - cb_df_standardization(df)
+      输入:
+        - df: pandas.DataFrame, 可转债数据
+      输出: pandas.DataFrame, 标准化后的数据框
+
+    - portfolio_return_calculate_daily(df, target_date, index_type=None)
+      输入:
+        - df: pandas.DataFrame, 投资组合数据
+        - target_date: str, 目标日期
+        - index_type: str, 可选，指数类型
+      输出: tuple, (portfolio_return, excess_portfolio_return)
+
+    - portfolio_return_calculate_standard(df, df_stock, df_future, df_option, df_etf, df_cb, target_date, index_type=None)
+      输入:
+        - df: pandas.DataFrame, 投资组合数据
+        - df_stock: pandas.DataFrame, 股票数据
+        - df_future: pandas.DataFrame, 期货数据
+        - df_option: pandas.DataFrame, 期权数据
+        - df_etf: pandas.DataFrame, ETF数据
+        - df_cb: pandas.DataFrame, 可转债数据
+        - target_date: str, 目标日期
+        - index_type: str, 可选，指数类型
+      输出: tuple, (portfolio_return, excess_portfolio_return) 

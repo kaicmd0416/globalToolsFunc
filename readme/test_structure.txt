@@ -1,0 +1,353 @@
+test_global_tools.py 测试结构说明
+
+1. 测试环境设置
+   - setup_test_environment()
+     功能: 设置测试环境，创建必要的目录和测试数据文件
+     输入: None
+     输出: tuple, (test_data_dir, test_csv_path, test_date_path, config_path)
+     说明: 创建测试所需的目录结构和测试数据文件
+
+2. 基础工具函数测试
+   - test_01_source_getting()
+     功能: 测试数据源获取函数
+     输入: None
+     预期输出: str, 'local' 或 'sql'
+     验证点: 返回值类型和值的有效性
+
+   - test_02_get_db_connection()
+     功能: 测试数据库连接函数
+     输入: None
+     预期输出: 数据库连接对象或None
+     验证点: 连接对象的有效性
+
+   - test_03_readcsv()
+     功能: 测试CSV文件读取函数
+     输入: 测试CSV文件路径
+     预期输出: pandas.DataFrame
+     验证点: 数据框的结构和内容
+
+3. 文件操作测试
+   - test_04_move_specific_files()
+     功能: 测试特定文件移动函数
+     输入: 源目录和目标目录
+     预期输出: None
+     验证点: 文件是否成功移动到目标目录
+
+   - test_05_move_specific_files2()
+     功能: 测试目录复制函数
+     输入: 源目录和目标目录
+     预期输出: None
+     验证点: 目录是否成功复制
+
+4. 数据处理测试
+   - test_06_rr_score_processing()
+     功能: 测试分数处理函数
+     输入: 包含valuation_date和code的数据框
+     预期输出: 处理后的数据框
+     验证点: final_score列的存在和计算正确性
+
+   - test_07_code_transfer()
+     功能: 测试代码转换函数
+     输入: 包含code列的数据框
+     预期输出: 标准化后的数据框
+     验证点: 代码格式的正确性
+
+5. 因子名称测试
+   - test_08_factor_name_old()
+     功能: 测试旧版因子名称获取函数
+     输入: None
+     预期输出: tuple, (barra_name, industry_name)
+     验证点: 返回值的类型和内容
+
+   - test_09_factor_name_new()
+     功能: 测试新版因子名称获取函数
+     输入: None
+     预期输出: tuple, (barra_name, industry_name)
+     验证点: 返回值的类型和内容
+
+6. 文件操作工具测试
+   - test_10_chunks()
+     功能: 测试列表等分函数
+     输入: 测试列表和等分数量
+     预期输出: 等分后的列表
+     验证点: 等分结果的正确性
+
+   - test_11_file_withdraw()
+     功能: 测试文件提取函数
+     输入: 目录路径和日期
+     预期输出: 文件路径
+     验证点: 文件路径的有效性
+
+7. 目录创建测试
+   - test_12_folder_creator()
+     功能: 测试文件夹创建函数
+     输入: 文件夹路径
+     预期输出: None
+     验证点: 文件夹是否成功创建
+
+   - test_13_folder_creator2()
+     功能: 测试多级目录创建函数
+     输入: 目录路径
+     预期输出: None
+     验证点: 多级目录是否成功创建
+
+   - test_14_folder_creator3()
+     功能: 测试文件路径创建函数
+     输入: 文件路径
+     预期输出: None
+     验证点: 文件路径是否成功创建
+
+8. 权重处理测试
+   - test_15_weight_sum_check()
+     功能: 测试权重和检查函数
+     输入: 包含weight列的数据框
+     预期输出: 处理后的数据框
+     验证点: 权重和是否为1
+
+   - test_16_weight_sum_warning()
+     功能: 测试权重和警告函数
+     输入: 包含weight列的数据框
+     预期输出: None
+     验证点: 警告信息的正确性
+
+9. 波动率计算测试
+   - test_17_stock_volatility_calculate()
+     功能: 测试股票波动率计算函数
+     输入: 包含valuation_date的数据框和日期
+     预期输出: 计算后的数据框
+     验证点: 波动率计算的正确性
+
+10. 数据读取测试
+    - test_18_data_reader()
+      功能: 测试数据读取函数
+      输入: 文件路径
+      预期输出: pandas.DataFrame
+      验证点: 数据读取的正确性
+
+    - test_19_data_getting()
+      功能: 测试数据获取函数
+      输入: 数据路径
+      预期输出: pandas.DataFrame
+      验证点: 数据获取的正确性
+
+11. 因子数据测试
+    - test_20_factor_universe_withdraw()
+      功能: 测试因子数据获取函数
+      输入: 因子类型
+      预期输出: pandas.DataFrame
+      验证点: 因子数据的完整性
+
+12. 日期处理测试
+    - test_21_Chinese_valuation_date()
+      功能: 测试中国交易日期获取函数
+      输入: None
+      预期输出: pandas.DataFrame
+      验证点: 交易日期的正确性
+
+    - test_22_next_workday()
+      功能: 测试下一个工作日获取函数
+      输入: None
+      预期输出: str
+      验证点: 日期的有效性
+
+    - test_23_last_workday()
+      功能: 测试上一个工作日获取函数
+      输入: None
+      预期输出: str
+      验证点: 日期的有效性
+
+    - test_24_last_workday_calculate()
+      功能: 测试工作日计算函数
+      输入: 指定日期
+      预期输出: str
+      验证点: 计算结果的正确性
+
+    - test_25_next_workday_calculate()
+      功能: 测试下一个工作日计算函数
+      输入: 指定日期
+      预期输出: str
+      验证点: 计算结果的正确性
+
+    - test_26_last_workday_calculate2()
+      功能: 测试批量工作日计算函数
+      输入: 包含date列的数据框
+      预期输出: pandas.DataFrame
+      验证点: 批量计算结果的正确性
+
+    - test_27_is_workday()
+      功能: 测试工作日判断函数
+      输入: 日期
+      预期输出: bool
+      验证点: 判断结果的正确性
+
+    - test_28_working_days()
+      功能: 测试工作日筛选函数
+      输入: 包含date列的数据框
+      预期输出: pandas.DataFrame
+      验证点: 筛选结果的正确性
+
+    - test_29_is_workday2()
+      功能: 测试今天是否为工作日判断函数
+      输入: None
+      预期输出: bool
+      验证点: 判断结果的正确性
+
+    - test_30_intdate_transfer()
+      功能: 测试日期转整数格式函数
+      输入: 日期
+      预期输出: str
+      验证点: 转换结果的正确性
+
+    - test_31_strdate_transfer()
+      功能: 测试日期转字符串格式函数
+      输入: 日期
+      预期输出: str
+      验证点: 转换结果的正确性
+
+    - test_32_working_days_list()
+      功能: 测试工作日列表获取函数
+      输入: 开始日期和结束日期
+      预期输出: list
+      验证点: 列表内容的正确性
+
+    - test_33_working_day_count()
+      功能: 测试工作日计数函数
+      输入: 开始日期和结束日期
+      预期输出: int
+      验证点: 计数结果的正确性
+
+    - test_34_month_lastday()
+      功能: 测试每月最后工作日获取函数
+      输入: None
+      预期输出: list
+      验证点: 日期列表的正确性
+
+    - test_35_last_weeks_lastday()
+      功能: 测试上周最后工作日获取函数
+      输入: None
+      预期输出: str
+      验证点: 日期的正确性
+
+    - test_36_last_weeks_lastday2()
+      功能: 测试指定日期的上周最后工作日获取函数
+      输入: 指定日期
+      预期输出: str
+      验证点: 计算结果的正确性
+
+    - test_37_weeks_firstday()
+      功能: 测试周第一个工作日获取函数
+      输入: 日期
+      预期输出: str
+      验证点: 计算结果的正确性
+
+    - test_38_next_weeks_lastday2()
+      功能: 测试下周最后工作日获取函数
+      输入: 日期
+      预期输出: str
+      验证点: 计算结果的正确性
+
+13. 指数数据处理测试
+    - test_39_index_mapping()
+      功能: 测试指数映射函数
+      输入: 指数名称和类型
+      预期输出: str
+      验证点: 映射结果的正确性
+
+    - test_40_index_weight_withdraw()
+      功能: 测试指数权重获取函数
+      输入: 指数类型和日期
+      预期输出: pandas.DataFrame
+      验证点: 权重数据的正确性
+
+    - test_41_crossSection_index_return_withdraw()
+      功能: 测试指数收益率获取函数
+      输入: 指数类型和日期
+      预期输出: float or None
+      验证点: 收益率计算的正确性
+
+    - test_42_crossSection_index_factorexposure_withdraw_new()
+      功能: 测试指数因子暴露获取函数
+      输入: 指数类型和日期
+      预期输出: pandas.DataFrame
+      验证点: 因子暴露数据的正确性
+
+    - test_43_timeSeries_index_return_withdraw()
+      功能: 测试时间序列指数收益率获取函数
+      输入: None
+      预期输出: pandas.DataFrame
+      验证点: 时间序列数据的正确性
+
+14. 证券数据处理测试
+    - test_44_crossSection_stock_return_withdraw()
+      功能: 测试股票收益率获取函数
+      输入: 日期
+      预期输出: pandas.DataFrame
+      验证点: 收益率数据的正确性
+
+    - test_45_crossSection_etf_data_withdraw()
+      功能: 测试ETF数据获取函数
+      输入: 日期
+      预期输出: pandas.DataFrame
+      验证点: ETF数据的正确性
+
+    - test_46_crossSection_cb_data_withdraw()
+      功能: 测试可转债数据获取函数
+      输入: 日期
+      预期输出: pandas.DataFrame
+      验证点: 可转债数据的正确性
+
+15. 期权和期货数据处理测试
+    - test_47_crossSection_option_data_withdraw()
+      功能: 测试期权数据获取函数
+      输入: 日期
+      预期输出: pandas.DataFrame
+      验证点: 期权数据的正确性
+
+    - test_48_crossSection_future_data_withdraw()
+      功能: 测试期货数据获取函数
+      输入: 日期
+      预期输出: pandas.DataFrame
+      验证点: 期货数据的正确性
+
+16. 投资组合计算测试
+    - test_49_weight_df_standardization()
+      功能: 测试权重数据标准化函数
+      输入: 包含code列的数据框
+      预期输出: pandas.DataFrame
+      验证点: 标准化结果的正确性
+
+    - test_50_option_df_standardization()
+      功能: 测试期权数据标准化函数
+      输入: 期权数据框
+      预期输出: pandas.DataFrame
+      验证点: 标准化结果的正确性
+
+    - test_51_future_df_standardization()
+      功能: 测试期货数据标准化函数
+      输入: 期货数据框
+      预期输出: pandas.DataFrame
+      验证点: 标准化结果的正确性
+
+    - test_52_etf_df_standardization()
+      功能: 测试ETF数据标准化函数
+      输入: ETF数据框
+      预期输出: pandas.DataFrame
+      验证点: 标准化结果的正确性
+
+    - test_53_cb_df_standardization()
+      功能: 测试可转债数据标准化函数
+      输入: 可转债数据框
+      预期输出: pandas.DataFrame
+      验证点: 标准化结果的正确性
+
+    - test_54_portfolio_return_calculate_daily()
+      功能: 测试每日组合收益计算函数
+      输入: 投资组合数据、目标日期和指数类型
+      预期输出: tuple, (portfolio_return, excess_portfolio_return)
+      验证点: 收益计算的正确性
+
+    - test_55_portfolio_return_calculate_standard()
+      功能: 测试标准组合收益计算函数
+      输入: 各类资产数据和目标日期
+      预期输出: tuple, (portfolio_return, excess_portfolio_return)
+      验证点: 收益计算的正确性 
