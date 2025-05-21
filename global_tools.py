@@ -1171,8 +1171,41 @@ def get_string_before_last_dot(s):
     if last_dot_index != -1:
         return s[:last_dot_index]
 def optiondata_greeksprocessing(df):
-
-    return 
+    """
+    处理期权Greeks数据，将delta_wind和implied_vol_wind的缺失值用delta和impliedvol补充，
+    然后删除原始列并将wind列重命名
+    
+    Args:
+        df (pandas.DataFrame): 包含delta, delta_wind, impliedvol, implied_vol_wind列的数据框
+    
+    Returns:
+        pandas.DataFrame: 处理后的数据框
+    """
+    if df.empty:
+        return df
+        
+    # 复制数据框以避免修改原始数据
+    df = df.copy()
+    # 处理delta_wind缺失值
+    if 'delta_wind' in df.columns and 'delta' in df.columns:
+        # 处理字符串'None'和Python None值
+        mask = (df['delta_wind'] == 'None') | (df['delta_wind'].isna())
+        df.loc[mask, 'delta_wind'] = df.loc[mask, 'delta']
+        # 删除原始delta列
+        df = df.drop(columns=['delta'])
+        # 重命名delta_wind为delta
+        df = df.rename(columns={'delta_wind': 'delta'})
+    
+    # 处理implied_vol_wind缺失值
+    if 'implied_vol_wind' in df.columns and 'impliedvol' in df.columns:
+        # 处理字符串'None'和Python None值
+        mask = (df['implied_vol_wind'] == 'None') | (df['implied_vol_wind'].isna())
+        df.loc[mask, 'implied_vol_wind'] = df.loc[mask, 'impliedvol']
+        # 删除原始impliedvol列
+        df = df.drop(columns=['impliedvol'])
+        # 重命名implied_vol_wind为implied_vol
+        df = df.rename(columns={'implied_vol_wind': 'implied_vol'})
+    return df
 def optiondata_withdraw(available_date,realtime=False):
     """
     提取期权数据
@@ -1195,7 +1228,9 @@ def optiondata_withdraw(available_date,realtime=False):
             inputpath_optiondata1 = inputpath_optiondata + f" WHERE valuation_date='{available_date}'"
             inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
         df = data_getting(inputpath_optiondata1)
-        df2=data_getting(inputpath_optiondata2)
+        df2 = data_getting(inputpath_optiondata2)
+        df = optiondata_greeksprocessing(df)
+        df2 = optiondata_greeksprocessing(df2)
     else:
         available_date=date.today()
         yes = last_workday_calculate(available_date)
@@ -1210,6 +1245,8 @@ def optiondata_withdraw(available_date,realtime=False):
             df = data_getting(inputpath_optiondata_realtime)
             inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes2}'"
         df2 = data_getting(inputpath_optiondata2)
+        df2 = optiondata_greeksprocessing(df2)
+    
     if realtime == True:
         if source == 'local':
             df = df[['代码', '现价', '前收盘价','前结算价', 'Delta','中价隐含波动率']]
@@ -1217,17 +1254,17 @@ def optiondata_withdraw(available_date,realtime=False):
         else:
             df = df[['code', 'close','pre_close', 'pre_settle', 'delta','implied_vol']]
         df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
-        df2 = df2[['code', 'delta_wind']]
-        df2.columns = ['code', 'delta_yes']
-        df_final = df.merge(df2, on='code', how='left')
+        try:
+            df2 = df2[['code', 'delta']]
+            df2.columns = ['code', 'delta_yes']
+            df_final = df.merge(df2, on='code', how='left')
+        except:
+            df_final = df
     else:
-        df = df[['code', 'settle', 'pre_settle', 'delta_wind']]
-        df.columns = ['code', 'close', 'close_yes', 'delta']
-        df2 = df2[['code', 'delta_wind']]
+        df2 = df2[['code', 'delta']]
         df2.columns = ['code', 'delta_yes']
-        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
-        df2['code'] = df2['code'].apply(lambda x: get_string_before_last_dot(x))
         df_final = df.merge(df2, on='code', how='left')
+    
     return df_final
 def crossSection_future_data_withdraw(available_date,realtime=False):
     if realtime == False:
