@@ -86,7 +86,15 @@ def get_db_connection(use_database2=False):
 source = source_getting()
 
 # ============= 基础工具函数 =============
-
+def sql_to_timeseries(df):
+    df.columns = ['valuation_date', 'code', 'value']
+    # 处理NULL值
+    df['value'] = pd.to_numeric(df['value'], errors='coerce')
+    # 按valuation_date和code分组，将value列的值作为新的列
+    df_pivot = df.pivot(index='valuation_date', columns='code', values='value')
+    # 重置索引，使valuation_date成为列
+    df_pivot = df_pivot.reset_index()
+    return df_pivot
 def readcsv(filepath, dtype=None, index_col=None):
     """
     读取CSV文件，支持多种编码格式
@@ -288,6 +296,29 @@ def file_withdraw(inputpath, available_date):
     if file_name is not None:
         return os.path.join(inputpath, file_name)
     return None
+def file_withdraw2(inputpath, available_date):
+    """
+    提取指定日期的文件
+
+    Args:
+        inputpath (str): 输入路径
+        available_date (str): 日期
+
+    Returns:
+        str: 文件路径
+    """
+    input_list = os.listdir(inputpath)
+    try:
+        file_name = [file for file in input_list if available_date in file][0]
+    except:
+        print(f'找不到日期 {available_date} 对应的文件: {inputpath}')
+        file_name = None
+    if file_name is not None:
+        inputpath= os.path.join(inputpath, file_name)
+        df=data_reader(inputpath)
+    else:
+        df=pd.DataFrame()
+    return df
 
 def folder_creator(inputpath):
     """
@@ -734,7 +765,7 @@ def working_days_list(start_date, end_date):
     global df_date
     df_date_copy = df_date.copy()
     df_date_copy.rename(columns={'valuation_date': 'date'}, inplace=True)
-    df_date_copy = df_date_copy[(df_date_copy['date'] >= '2014-12-31') & 
+    df_date_copy = df_date_copy[(df_date_copy['date'] >= '2010-12-31') &
                                (df_date_copy['date'] <= '2030-01-01')]
     df_date_copy['target_date'] = df_date_copy['date']
     df_date_copy.dropna(inplace=True)
@@ -782,6 +813,8 @@ def last_weeks_lastday():
     today = today.strftime('%Y-%m-%d')
     inputpath = glv('weeks_lastday')
     df_lastday = data_getting(inputpath)
+    if source=='sql':
+        df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
     if df_lastday.empty:
         print("警告: 未找到周最后工作日数据")
         return today
@@ -800,6 +833,8 @@ def last_weeks_lastday2(date):
     """
     inputpath = glv('weeks_lastday')
     df_lastday = data_getting(inputpath)
+    if source=='sql':
+        df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
     if df_lastday.empty:
         print("警告: 未找到周最后工作日数据")
         return date
@@ -820,6 +855,8 @@ def weeks_firstday(date):
     """
     inputpath = glv('weeks_firstday')
     df_firstday = data_getting(inputpath)
+    if source=='sql':
+        df_firstday=df_firstday[df_firstday['type']=='weeksFirstDay']
     if df_firstday.empty:
         print("警告: 未找到周第一个工作日数据")
         return date
@@ -840,6 +877,8 @@ def next_weeks_lastday2(date):
     date = date.strftime('%Y-%m-%d')
     inputpath = glv('weeks_lastday')
     df_lastday = data_getting(inputpath)
+    if source=='sql':
+        df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
     if df_lastday.empty:
         print("警告: 未找到周最后工作日数据")
         return date
@@ -916,7 +955,7 @@ def index_weight_withdraw(index_type, available_date):
         inputpath_index = os.path.join(inputpath_index, short_name)
         inputpath_index = file_withdraw(inputpath_index, available_date2)
     else:
-        inputpath_index = inputpath_index + f" WHERE valuation_date='{available_date2}' AND organization='{short_name}'"
+        inputpath_index = inputpath_index + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
     
     df = data_getting(inputpath_index)
     if df.empty:
@@ -942,39 +981,37 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
     Returns:
         float or None: 指数收益率
     """
+    short_name = index_mapping(index_type,'code')
     if realtime==False:
         available_date2 = intdate_transfer(available_date)
-        inputpath_indexreturn = glv('input_indexreturn')
+        inputpath_indexreturn = glv('index_data')
         if source == 'local':
             inputpath_indexreturn = file_withdraw(inputpath_indexreturn, available_date2)
         else:
-            inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date='{available_date2}'"
+            inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date='{available_date}' AND code='{short_name}'"
         df = data_getting(inputpath_indexreturn)
+        try:
+            index_return=df[df['code']==short_name]['pct_chg'].tolist()[0]
+        except:
+            index_return=None
     else:
-        available_date2=intdate_transfer(date.today())
         inputpath_indexreturn=glv('input_indexreturn_realtime')
         if source == 'local':
             df=data_getting(inputpath_indexreturn,sheet_name='indexreturn')
-            df.columns=['valuation_date','上证50','沪深300','中证500','中证1000','中证2000','华证微盘','中证A500']
+            try:
+                index_return=df[short_name].tolist()[0]
+            except:
+                index_return=None
         else:
-            inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type=index'"
+            inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{short_name}' "
             df=data_getting(inputpath_indexreturn)
-            df=df[['code','ret']]
-            df.set_index('code',inplace=True)
-            df=df.T
-            df.reset_index(inplace=True,drop=True)
-            df.columns=['上证50','沪深300','中证500','中证1000','中证2000','华证微盘','中证A500']
-    if df.empty:
-        return None
-    else:
-        try:
-            # Convert the value to float and handle any string formatting
-            value = df[index_type].iloc[0]
-            if isinstance(value, str):
-                value = value.strip()
-            return float(value)
-        except (ValueError, TypeError, IndexError):
-            return None
+            try:
+                index_return=df['ret'].tolist()[0]
+            except:
+                index_return=None
+    return index_return
+
+
 
 def crossSection_index_factorexposure_withdraw_new(index_type, available_date):
     """
@@ -994,7 +1031,7 @@ def crossSection_index_factorexposure_withdraw_new(index_type, available_date):
         inputpath_indexexposure = os.path.join(inputpath_indexexposure, short_name)
         inputpath_indexexposure = file_withdraw(inputpath_indexexposure, available_date2)
     else:
-        inputpath_indexexposure = inputpath_indexexposure + f" WHERE valuation_date='{available_date2}' AND organization='{short_name}'"
+        inputpath_indexexposure = inputpath_indexexposure + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
     df = data_getting(inputpath_indexexposure)
     if df.empty:
         df = pd.DataFrame()
@@ -1014,103 +1051,47 @@ def timeSeries_index_return_withdraw():
     """
     inputpath_indexreturn = glv('timeseires_indexReturn')
     df = data_getting(inputpath_indexreturn)
+    if source=='sql':
+        df=df[['valuation_date','code','pct_chg']]
+        df=sql_to_timeseries(df)
     df['valuation_date'] = pd.to_datetime(df['valuation_date'])
     df['valuation_date'] = df['valuation_date'].apply(lambda x: x.strftime('%Y-%m-%d'))
-    try:
-        df = df.drop(columns=['id', 'metadata_id'])
-    except:
-        pass
     return df
 
 # ============= 证券数据处理函数 =============
-def crossSection_stock_data_local_withdraw(available_date):
-    yes=last_workday_calculate(available_date)
+def crossSection_stockdata_local_withdraw(available_date):
+    yes = last_workday_calculate(available_date)
     available_date2 = intdate_transfer(available_date)
     yes2 = intdate_transfer(yes)
-    inputpath_stockclose = glv('input_stockclose')
+    inputpath_stockclose = glv('input_stockdata')
     if source == 'local':
         inputpath_stockclose1 = file_withdraw(inputpath_stockclose, available_date2)
         inputpath_stockclose2=file_withdraw(inputpath_stockclose, yes2)
     else:
-        inputpath_stockclose1 = inputpath_stockclose + f" WHERE valuation_date='{available_date2}'"
-        inputpath_stockclose2 = inputpath_stockclose + f" WHERE valuation_date='{available_date2}'"
+        inputpath_stockclose1 = inputpath_stockclose + f" WHERE valuation_date='{available_date}'"
+        inputpath_stockclose2 = inputpath_stockclose + f" WHERE valuation_date='{available_date}'"
     df = data_getting(inputpath_stockclose1)
     df2 = data_getting(inputpath_stockclose2)
-    if 'valuation_date' in df.columns:
-            df = df.drop('valuation_date', axis=1)
-            df2 = df2.drop('valuation_date', axis=1)
-    if source=='local':
-        df = df.transpose()
-        df = df.reset_index()
-        df2 = df2.transpose()
-        df2 = df2.reset_index()
-        df.columns=['code','close']
-        df2.columns = ['code', 'close']
-    if df.empty or df2.empty:
-        df=pd.DataFrame(columns=['code','close','close_yes'])
-    else:
-        df  = df[['code','close']]
-        df2 = df2[['code', 'close']]
-        df.columns = ['code', 'close']
-        df2.columns = ['code', 'close_yes']
-        df = df.merge(df2, on='code', how='left')
+    df2=df2[['code','adjfactor_jy','adjfactor_wind']]
+    df2.columns=['code','adjfactor_jy_yes','adjfactor_wind_yes']
+    df=df.merge(df2,on='code',how='left')
     return df
-def crossSection_stock_data_withdraw(available_date,realtime=False):
+def stockdata_withdraw(available_date,realtime=False):
     if realtime == True:
         inputpath_stockreturn = glv('input_stockclose_realtime')
         if source == 'local':
             df = data_getting(inputpath_stockreturn,'stockprice')
-            df=df[['代码','close','pre_close']]
+            df=df[['代码','close','pre_close','return']]
         else:
             inputpath_stockreturn = inputpath_stockreturn + f" WHERE type='stock'"
             df = data_getting(inputpath_stockreturn)
-            df=df[['code','close','pre_close']]
-        df.columns = ['code', 'close', 'close_yes']
+            df=df[['code','close','pre_close','ret']]
+        df.columns = ['code', 'close', 'close_yes','pct_chg']
+        df['pct_chg']=df['pct_chg']/100
     else:
-        df=crossSection_stock_data_local_withdraw(available_date)
-    if df.empty:
-        df = pd.DataFrame(columns=['code', 'close', 'close_yes'])
+        df=crossSection_stockdata_local_withdraw(available_date)
     return df
-def crossSection_stock_adj_local_withdraw(available_date,source2='wind',realtime=False):
-    if realtime==False:
-        yes = last_workday_calculate(available_date)
-        available_date2 = intdate_transfer(available_date)
-        yes2 = intdate_transfer(yes)
-    else:
-        available_date=date.today()
-        yes = last_workday_calculate(available_date)
-        available_date2 = intdate_transfer(yes)
-        yes2 = intdate_transfer(last_workday_calculate(yes))
-    if source2=='jy':
-         inputpath_stockclose = glv('input_stockadj_jy')
-    else:
-        inputpath_stockclose = glv('input_stockadj_wind')
-    if source == 'local':
-        inputpath_stockclose1 = file_withdraw(inputpath_stockclose, available_date2)
-        inputpath_stockclose2=file_withdraw(inputpath_stockclose, yes2)
-    else:
-        inputpath_stockclose1 = inputpath_stockclose + f" WHERE valuation_date='{available_date2}'"
-        inputpath_stockclose2 = inputpath_stockclose + f" WHERE valuation_date='{yes2}'"
-    df = data_getting(inputpath_stockclose1)
-    df2 = data_getting(inputpath_stockclose2)
-    if 'valuation_date' in df.columns:
-            df = df.drop('valuation_date', axis=1)
-            df2 = df2.drop('valuation_date', axis=1)
-    if df.empty or df2.empty:
-        df=pd.DataFrame(columns=['code','adjfactor'])
-    else:
-        df=df[['code','adjfactor']]
-        df2=df2[['code','adjfactor']]
-        df.columns = ['code', 'adjfactor']
-        df2.columns = ['code', 'adjfactor_yes']
-        df = df.merge(df2, on='code', how='left')
-    return df
-def crossSection_stock_adjfactor_withdraw(available_date,realtime=False,source2='wind'):
-    df = crossSection_stock_adj_local_withdraw(available_date, source2,realtime)
-    if df.empty:
-        df = pd.DataFrame(columns=['code', 'adjfactor', 'adjfactor_yes'])
-    return df
-def crossSection_etf_data_withdraw(available_date,realtime=False):
+def etfdata_withdraw(available_date,realtime=False):
     """
     提取ETF数据
     
@@ -1126,29 +1107,30 @@ def crossSection_etf_data_withdraw(available_date,realtime=False):
         if source == 'local':
             inputpath_etfdata = file_withdraw(inputpath_etfdata, available_date2)
         else:
-            inputpath_etfdata = inputpath_etfdata + f" WHERE valuation_date='{available_date2}'"
+            inputpath_etfdata = inputpath_etfdata + f" WHERE valuation_date='{available_date}'"
         df = data_getting(inputpath_etfdata)
+        try:
+           df['pct_chg'] = (df['close'] - df['pre_close']) / df['pre_close']
+        except:
+            pass
     else:
         inputpath_etfdata = glv('input_etfdata_realtime')
         if source == 'local':
             df = data_getting(inputpath_etfdata,'etf_info')
+            df = df[['代码', '现价', '前收']]
+            df['pct_chg']=(df['现价']-df['前收'])/df['前收']
         else:
             inputpath_etfdata= inputpath_etfdata + f" WHERE type='etf'"
             df = data_getting(inputpath_etfdata)
-    if df.empty:
-        df=pd.DataFrame(columns=['code','close','close_yes'])
-    else:
-        if realtime==True:
-            if source=='local':
-              df=df[['代码','现价','前收']]
-            else:
-                df=df[['code','close','pre_close']]
-        else:
-              df=df[['code','close','pre_close']]
-        df.columns=['code','close','close_yes']
+            df = df[['code', 'close', 'pre_close']]
+            try:
+                df['pct_chg'] = (df['close'] - df['pre_close']) / df['pre_close']
+            except:
+                pass
+        df.columns = ['code', 'close', 'pre_close', 'pct_chg']
     return df
 
-def crossSection_cb_data_withdraw(available_date,realtime=False):
+def cbdata_withdraw(available_date,realtime=False):
     """
     提取可转债数据
     
@@ -1174,18 +1156,13 @@ def crossSection_cb_data_withdraw(available_date,realtime=False):
         inputpath_cbdata1 = file_withdraw(inputpath_cbdata, available_date2)
         inputpath_cbdata2 = file_withdraw(inputpath_cbdata, yes2)
     else:
-        inputpath_cbdata1 = inputpath_cbdata + f" WHERE valuation_date='{available_date2}'"
-        inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes2}'"
+        inputpath_cbdata1 = inputpath_cbdata + f" WHERE valuation_date='{available_date}'"
+        inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes}'"
     df = data_getting(inputpath_cbdata1)
     df2 = data_getting(inputpath_cbdata2)
-    if df.empty or df2.empty:
-        df=pd.DataFrame(columns=['code','close','close_yes','delta','delta_yes'])
-    else:
-        df=df[['code','close','pre_close','delta']]
-        df2=df2[['code','delta']]
-        df2.columns=['code','delta_yes']
-        df=df.merge(df2,on='code',how='left')
-        df.rename(columns={'pre_close':'close_yes'},inplace=True)
+    df2 = df2[['code', 'delta']]
+    df2.columns = ['code', 'delta_yes']
+    df = df.merge(df2, on='code', how='left')
     return df
 
 # ============= 期权和期货数据处理函数 =============
@@ -1193,8 +1170,10 @@ def get_string_before_last_dot(s):
     last_dot_index = s.rfind('.')
     if last_dot_index != -1:
         return s[:last_dot_index]
-    return s
-def crossSection_option_data_withdraw(available_date,realtime=False):
+def optiondata_greeksprocessing(df):
+
+    return 
+def optiondata_withdraw(available_date,realtime=False):
     """
     提取期权数据
     
@@ -1204,7 +1183,6 @@ def crossSection_option_data_withdraw(available_date,realtime=False):
     Returns:
         pandas.DataFrame: 期权数据
     """
-
     if realtime==False:
         yes = last_workday_calculate(available_date)
         yes2 = intdate_transfer(yes)
@@ -1214,8 +1192,8 @@ def crossSection_option_data_withdraw(available_date,realtime=False):
             inputpath_optiondata1 = file_withdraw(inputpath_optiondata, available_date2)
             inputpath_optiondata2 = file_withdraw(inputpath_optiondata, yes2)
         else:
-            inputpath_optiondata1 = inputpath_optiondata + f" WHERE valuation_date='{available_date2}'"
-            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes2}'"
+            inputpath_optiondata1 = inputpath_optiondata + f" WHERE valuation_date='{available_date}'"
+            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
         df = data_getting(inputpath_optiondata1)
         df2=data_getting(inputpath_optiondata2)
     else:
@@ -1232,28 +1210,24 @@ def crossSection_option_data_withdraw(available_date,realtime=False):
             df = data_getting(inputpath_optiondata_realtime)
             inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes2}'"
         df2 = data_getting(inputpath_optiondata2)
-    if df.empty or df2.empty:
-        df_final=pd.DataFrame(columns=['code','close','close_yes','delta','delta_yes'])
-    else:
-        if realtime==True:
-            if source=='local':
-                df = df[['代码', '现价', '前结算价', 'Delta']]
-                df.columns = ['code', 'close', 'close_yes', 'delta']
-            else:
-                df=df[['code','close','pre_settle','delta']]
-                df.columns = ['code', 'close', 'close_yes', 'delta']
-            df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
-            df2 = df2[['code', 'delta_wind']]
-            df2.columns = ['code', 'delta_yes']
-            df_final = df.merge(df2, on='code', how='left')
+    if realtime == True:
+        if source == 'local':
+            df = df[['代码', '现价', '前收盘价','前结算价', 'Delta','中价隐含波动率']]
+            df.columns = ['code', 'close','pre_close', 'pre_settle', 'delta','implied_vol']
         else:
-            df=df[['code','settle','pre_settle','delta_wind']]
-            df.columns=['code','close','close_yes','delta']
-            df2=df2[['code','delta_wind']]
-            df2.columns = ['code', 'delta_yes']
-            df['code']=df['code'].apply(lambda x: get_string_before_last_dot(x))
-            df2['code']=df2['code'].apply(lambda x: get_string_before_last_dot(x))
-            df_final=df.merge(df2,on='code',how='left')
+            df = df[['code', 'close','pre_close', 'pre_settle', 'delta','implied_vol']]
+        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
+        df2 = df2[['code', 'delta_wind']]
+        df2.columns = ['code', 'delta_yes']
+        df_final = df.merge(df2, on='code', how='left')
+    else:
+        df = df[['code', 'settle', 'pre_settle', 'delta_wind']]
+        df.columns = ['code', 'close', 'close_yes', 'delta']
+        df2 = df2[['code', 'delta_wind']]
+        df2.columns = ['code', 'delta_yes']
+        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
+        df2['code'] = df2['code'].apply(lambda x: get_string_before_last_dot(x))
+        df_final = df.merge(df2, on='code', how='left')
     return df_final
 def crossSection_future_data_withdraw(available_date,realtime=False):
     if realtime == False:
