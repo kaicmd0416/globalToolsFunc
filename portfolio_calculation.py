@@ -16,7 +16,7 @@ class portfolio_calculation:
     Each DataFrame contains three columns:
         - code: Security code
         - close: Current closing price
-        - close_yes: Previous day's closing price
+        - pre_close: Previous day's closing price
     """
     def __init__(self,df_initial_holding=pd.DataFrame(),df_holding=pd.DataFrame(),df_stock=pd.DataFrame(),df_etf=pd.DataFrame(),df_option=pd.DataFrame(),
                  df_future=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),df_adj_factor=pd.DataFrame(),account_money=None,cost=None):
@@ -59,7 +59,7 @@ class portfolio_calculation:
             'stock': self.df_stock,
             'etf': self.df_etf,
         }
-        required_columns = ['code', 'close', 'close_yes']
+        required_columns = ['code', 'close', 'pre_close']
         for df_name, df in market_dfs.items():
             if not all(col in df.columns for col in required_columns):
                 invalid_inputs.append(df_name)
@@ -67,10 +67,10 @@ class portfolio_calculation:
         if not all(col in self.df_adjfactor.columns for col in adj_required_columns):
             invalid_inputs.append('adjfactor')
         # Special check for futures data
-        futures_required_columns = ['code', 'close', 'close_yes', 'multiplier']
+        futures_required_columns = ['code', 'close', 'pre_close', 'multiplier']
         if not all(col in self.df_future.columns for col in futures_required_columns):
             invalid_inputs.append('future')
-        oc_required_columns = ['code', 'close', 'close_yes', 'delta','delta_yes']
+        oc_required_columns = ['code', 'close', 'pre_close', 'delta','delta_yes']
         if not all(col in self.df_option.columns for col in oc_required_columns):
             invalid_inputs.append('option')
         if not all(col in self.df_convertible_bond.columns for col in oc_required_columns):
@@ -107,21 +107,24 @@ class portfolio_calculation:
     def mktdata_data_processing(self):
         # Initialize list to store non-empty processed DataFrames
         processed_dfs = []
-        
+        required_column=['code','close','pre_close','pct_chg']
         # Process convertible bond if not empty
         if not self.df_convertible_bond.empty:
             df_convertible_bond=self.df_convertible_bond.copy()
+            df_convertible_bond['pct_chg']=(df_convertible_bond['close']-df_convertible_bond['pre_close'])/df_convertible_bond['pre_close']
+            df_convertible_bond=df_convertible_bond[required_column+['delta','delta_yes']]
             df_convertible_bond['class']='convertible_bond'
             df_convertible_bond['adjfactor']=1
             df_convertible_bond['adjfactor_yes'] = 1
             df_convertible_bond['multiplier']=10
             df_convertible_bond=self.df_processing(df_convertible_bond)
             df_convertible_bond['mkt_value']=df_convertible_bond['multiplier']*df_convertible_bond['close']
-            df_convertible_bond['mkt_value_yes']=df_convertible_bond['multiplier']*df_convertible_bond['close_yes']
+            df_convertible_bond['mkt_value_yes']=df_convertible_bond['multiplier']*df_convertible_bond['pre_close']
             processed_dfs.append(df_convertible_bond)
         # Process ETF if not empty
         if not self.df_etf.empty:
             df_etf=self.df_etf.copy()
+            df_etf=df_etf[required_column]
             df_etf['class']='etf'
             df_etf['multiplier']=100
             df_etf['delta']=1
@@ -130,12 +133,14 @@ class portfolio_calculation:
             df_etf['adjfactor_yes']=1
             df_etf=self.df_processing(df_etf)
             df_etf['mkt_value']=df_etf['close']*df_etf['multiplier']*df_etf['delta']
-            df_etf['mkt_value_yes']=df_etf['close_yes']*df_etf['multiplier']*df_etf['delta']
+            df_etf['mkt_value_yes']=df_etf['pre_close']*df_etf['multiplier']*df_etf['delta']
             processed_dfs.append(df_etf)
             
         # Process future if not empty
         if not self.df_future.empty:
             df_future=self.df_future.copy()
+            df_future['pct_chg']=(df_future['close']-df_future['pre_close'])/df_future['pre_close']
+            df_future=df_future[required_column+['multiplier']]
             df_future['class']='future'
             df_future['delta']=1
             df_future['delta_yes'] = 1
@@ -143,14 +148,15 @@ class portfolio_calculation:
             df_future['adjfactor_yes']=1
             df_future=self.df_processing(df_future)
             df_future['mkt_value']=df_future['close']*df_future['multiplier']*df_future['delta']
-            df_future['mkt_value_yes']=df_future['close_yes']*df_future['multiplier']*df_future['delta']
+            df_future['mkt_value_yes']=df_future['pre_close']*df_future['multiplier']*df_future['delta']
             processed_dfs.append(df_future)
         else:
             df_future=pd.DataFrame()
-            
         # Process option if not empty
         if not self.df_option.empty:
             df_option=self.df_option.copy()
+            df_option['pct_chg'] = (df_option['close'] - df_option['pre_close']) / df_option['pre_close']
+            df_option=df_option[required_column+['delta','delta_yes']]
             df_option['class']='option'
             df_option['multiplier']=100
             df_option['adjfactor']=1
@@ -163,6 +169,7 @@ class portfolio_calculation:
         # Process stock if not empty
         if not self.df_stock.empty:
             df_stock=self.df_stock.copy()
+            df_stock=df_stock[required_column]
             df_stock['class']='stock'
             df_stock['multiplier']=100
             df_stock['delta']=1
@@ -170,7 +177,7 @@ class portfolio_calculation:
             df_stock=self.df_processing(df_stock)
             df_adjfactor=self.df_processing(self.df_adjfactor)
             df_stock['mkt_value']=df_stock['close']*df_stock['multiplier']*df_stock['delta']
-            df_stock['mkt_value_yes']=df_stock['close_yes']*df_stock['multiplier']*df_stock['delta']
+            df_stock['mkt_value_yes']=df_stock['pre_close']*df_stock['multiplier']*df_stock['delta']
             if not self.df_adjfactor.empty:
                 df_stock=df_stock.merge(df_adjfactor,on='code',how='left')
             else:
@@ -180,7 +187,6 @@ class portfolio_calculation:
         # If no DataFrames were processed, return empty DataFrame
         if not processed_dfs:
             return pd.DataFrame()
-            
         # Concatenate all processed DataFrames
         df = pd.concat(processed_dfs)
         df=df.replace('None',np.nan)
@@ -240,15 +246,12 @@ class portfolio_calculation:
         if len(df_missing) > 0:
             print('以下数据存在缺失，将按照0处理')
             print(df_missing)
-        df['return'] = ((df['close'] * df['adjfactor']) - (
-                    df['close_yes'] * df['adjfactor_yes'])) / (
-                                         df['close_yes'] * df['adjfactor_yes'])
-        df['price_difference']=(df['close']*df['adjfactor']-df['close_yes']*df['adjfactor_yes'])/df['adjfactor_yes']
+        df['price_difference']=(df['close']*df['adjfactor']-df['pre_close']*df['adjfactor_yes'])/df['adjfactor_yes']
         df['profit']=df['price_difference']*df['quantity']*df['multiplier']
         df['risk_mktvalue']=df['close']*df['multiplier']*df['quantity']*df['delta']
         df['mkt_value']=df['mkt_value']*df['quantity']
         df['mkt_value_yes']=df['mkt_value_yes']*df['quantity']
-        df['paper_return']=df['return']*df['weight']
+        df['paper_return']=df['pct_chg']*df['weight']
         paper_return=df['paper_return'].sum()-self.cost*turnover_ratio
         portfolio_profit=df['profit'].sum()
         portfolio_profit=portfolio_profit-turnover_cost

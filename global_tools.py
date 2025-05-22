@@ -992,6 +992,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
         df = data_getting(inputpath_indexreturn)
         try:
             index_return=df[df['code']==short_name]['pct_chg'].tolist()[0]
+            index_return=float(index_return)
         except:
             index_return=None
     else:
@@ -1000,6 +1001,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
             df=data_getting(inputpath_indexreturn,sheet_name='indexreturn')
             try:
                 index_return=df[short_name].tolist()[0]
+                index_return=float(index_return)
             except:
                 index_return=None
         else:
@@ -1007,6 +1009,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
             df=data_getting(inputpath_indexreturn)
             try:
                 index_return=df['ret'].tolist()[0]
+                index_return=float(index_return)
             except:
                 index_return=None
     return index_return
@@ -1091,6 +1094,21 @@ def stockdata_withdraw(available_date,realtime=False):
     else:
         df=crossSection_stockdata_local_withdraw(available_date)
     return df
+def stockdata_adj_withdraw(available_date,realtime,adj_source):
+    df_stock=stockdata_withdraw(available_date,realtime)
+    df_adjfactor=pd.DataFrame()
+    df_adjfactor['code'] = df_stock['code'].tolist()
+    if realtime==True:
+        df_adjfactor['adjfactor']=1
+        df_adjfactor['adjfactor_yes']=1
+    else:
+        if adj_source=='wind':
+            df_adjfactor['adjfactor']=df_stock['adjfactor_wind'].tolist()
+            df_adjfactor['adjfactor_yes'] = df_stock['adjfactor_wind_yes'].tolist()
+        else:
+            df_adjfactor['adjfactor']=df_stock['adjfactor_jy'].tolist()
+            df_adjfactor['adjfactor_yes'] = df_stock['adjfactor_jy_yes'].tolist()
+    return df_adjfactor
 def etfdata_withdraw(available_date,realtime=False):
     """
     提取ETF数据
@@ -1266,37 +1284,31 @@ def optiondata_withdraw(available_date,realtime=False):
         df_final = df.merge(df2, on='code', how='left')
     
     return df_final
-def crossSection_future_data_withdraw(available_date,realtime=False):
+def futuredata_withdraw(available_date,realtime=False):
     if realtime == False:
         available_date2 = intdate_transfer(available_date)
         inputpath_futuredata = glv('input_futuredata')
         if source == 'local':
             inputpath_futuredata = file_withdraw(inputpath_futuredata, available_date2)
         else:
-            inputpath_futuredata = inputpath_futuredata + f" WHERE valuation_date='{available_date2}'"
+            inputpath_futuredata = inputpath_futuredata + f" WHERE valuation_date='{available_date}'"
         df = data_getting(inputpath_futuredata)
     else:
-        available_date2=intdate_transfer(date.today())
         inputpath_futuredata = glv('input_futuredata_realtime')
         if source == 'local':
             df = data_getting(inputpath_futuredata, 'future_info')
         else:
             inputpath_futuredata = inputpath_futuredata + f" WHERE type='future'"
             df = data_getting(inputpath_futuredata)
-    if df.empty:
-        df = pd.DataFrame(columns=['code', 'close', 'close_yes', 'multiplier'])
-    else:
-        if realtime == True:
-            if source=='local':
-                df = df[['代码', '现价', '前结算价', '合约系数']]
-            else:
-                df=df[['code','close','pre_settle','multiplier']]
-            df.columns = ['code', 'close', 'close_yes', 'multiplier']
-            df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
+    if realtime == True:
+        if source == 'local':
+            df = df[['代码', '现价', '前结算价', '前收盘价','合约系数']]
         else:
-            df = df[['code', 'settle', 'pre_settle', 'multiplier']]
-            df.columns = ['code', 'close', 'close_yes', 'multiplier']
-            df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
+            df = df[['code', 'close', 'pre_settle','pre_close', 'multiplier']]
+        df.columns = ['code', 'close', 'pre_settle','pre_close', 'multiplier']
+        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
+    else:
+        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
     return df
 def weight_df_standardization(df):
     """
@@ -1400,12 +1412,12 @@ def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df
     i=0
     day_list2=[]
     for available_date in day_list:
-         df_stock=crossSection_stock_data_withdraw(available_date,realtime)
-         df_future=crossSection_future_data_withdraw(available_date,realtime)
-         df_etf=crossSection_etf_data_withdraw(available_date,realtime)
-         df_option=crossSection_option_data_withdraw(available_date,realtime)
-         df_convertible_bond=crossSection_cb_data_withdraw(available_date,realtime)
-         df_adj_factor=crossSection_stock_adjfactor_withdraw(available_date,realtime,adj_source)
+         df_stock=stockdata_withdraw(available_date,realtime)
+         df_future=futuredata_withdraw(available_date,realtime)
+         df_etf=etfdata_withdraw(available_date,realtime)
+         df_option=optiondata_withdraw(available_date,realtime)
+         df_convertible_bond=cbdata_withdraw(available_date,realtime)
+         df_adj_factor=stockdata_adj_withdraw(available_date,realtime,adj_source)
          if df_stock.empty:
              print(str(available_date) + 'stock_data为空,可能会导致计算结果不准')
          if df_future.empty:
