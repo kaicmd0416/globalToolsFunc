@@ -45,7 +45,7 @@ def source_getting():
         source = 'local'
     return source
 
-def get_db_connection(use_database2=False):
+def get_db_connection(config_path=None,use_database2=False):
     """
     获取数据库连接
     
@@ -59,8 +59,11 @@ def get_db_connection(use_database2=False):
         return None
         
     try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(current_dir, 'tools_path_config.json')
+        if config_path==None:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(current_dir, 'tools_path_config.json')
+        else:
+            config_path=config_path
         
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
@@ -462,7 +465,7 @@ def data_reader(filepath, dtype=None, index_col=None,sheet_name=None):
         else:
             return pd.DataFrame()
 
-def data_getting(path,sheet_name=None):
+def data_getting(path,config_path=None,sheet_name=None):
     """
     获取数据
     
@@ -478,9 +481,9 @@ def data_getting(path,sheet_name=None):
     else:
         try:
             # 首先尝试主数据库
-            conn = get_db_connection()
+            conn = get_db_connection(config_path)
             if conn is None:
-                conn = get_db_connection(use_database2=True)
+                conn = get_db_connection(config_path,use_database2=True)
             
             if conn is not None:
                 try:
@@ -489,13 +492,13 @@ def data_getting(path,sheet_name=None):
                     
                     # 如果主数据库没有数据，尝试第二个数据库
                     if df.empty:
-                        conn2 = get_db_connection(use_database2=True)
+                        conn2 = get_db_connection(config_path,use_database2=True)
                         if conn2 is not None:
                             df = pd.read_sql(path, con=conn2)
                             conn2.close()
                 except Exception:
                     # 如果主数据库查询失败，尝试备用数据库
-                    conn2 = get_db_connection(use_database2=True)
+                    conn2 = get_db_connection(config_path,use_database2=True)
                     if conn2 is not None:
                         try:
                             df = pd.read_sql(path, con=conn2)
@@ -1016,7 +1019,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
 
 
 
-def crossSection_index_factorexposure_withdraw_new(index_type, available_date):
+def crossSection_index_factorexposure_withdraw(index_type, available_date):
     """
     提取指数因子暴露数据
     
@@ -1040,7 +1043,7 @@ def crossSection_index_factorexposure_withdraw_new(index_type, available_date):
         df = pd.DataFrame()
     else:
         try:
-            df = df.drop(columns=['organization', 'id', 'metadata_id'])
+            df = df.drop(columns=['organization'])
         except:
             pass
     return df
