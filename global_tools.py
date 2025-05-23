@@ -1089,7 +1089,7 @@ def stockdata_withdraw(available_date,realtime=False):
             inputpath_stockreturn = inputpath_stockreturn + f" WHERE type='stock'"
             df = data_getting(inputpath_stockreturn)
             df=df[['code','close','pre_close','ret']]
-        df.columns = ['code', 'close', 'close_yes','pct_chg']
+        df.columns = ['code', 'close', 'pre_close','pct_chg']
         df['pct_chg']=df['pct_chg']/100
     else:
         df=crossSection_stockdata_local_withdraw(available_date)
@@ -1160,27 +1160,33 @@ def cbdata_withdraw(available_date,realtime=False):
     """
 
     if realtime==False:
-        yes = last_workday_calculate(available_date)
-        yes2 = intdate_transfer(yes)
+        yes2 = last_workday_calculate(available_date)
+        int_yes2 = intdate_transfer(yes2)
         available_date2 = intdate_transfer(available_date)
     else:
         print('暂时没有realtime的可转债数据，用日频数据替代')
         available_date = date.today()
+        available_date=strdate_transfer(available_date)
         yes = last_workday_calculate(available_date)
-        available_date2 = intdate_transfer(yes)
-        yes2 = intdate_transfer(last_workday_calculate(yes))
+        available_date=yes
+        available_date2=intdate_transfer(available_date)
+        yes2 = last_workday_calculate(yes)
+        int_yes2=intdate_transfer(yes2)
     inputpath_cbdata = glv('input_cbdata')
     if source == 'local':
         inputpath_cbdata1 = file_withdraw(inputpath_cbdata, available_date2)
-        inputpath_cbdata2 = file_withdraw(inputpath_cbdata, yes2)
+        inputpath_cbdata2 = file_withdraw(inputpath_cbdata, int_yes2)
     else:
         inputpath_cbdata1 = inputpath_cbdata + f" WHERE valuation_date='{available_date}'"
-        inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes}'"
+        inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes2}'"
     df = data_getting(inputpath_cbdata1)
     df2 = data_getting(inputpath_cbdata2)
-    df2 = df2[['code', 'delta']]
-    df2.columns = ['code', 'delta_yes']
-    df = df.merge(df2, on='code', how='left')
+    try:
+        df2 = df2[['code', 'delta']]
+        df2.columns = ['code', 'delta_yes']
+        df = df.merge(df2, on='code', how='left')
+    except:
+        df['delta_yes']=None
     return df
 
 # ============= 期权和期货数据处理函数 =============
@@ -1261,7 +1267,7 @@ def optiondata_withdraw(available_date,realtime=False):
         else:
             inputpath_optiondata_realtime = inputpath_optiondata_realtime + f" WHERE type='option'"
             df = data_getting(inputpath_optiondata_realtime)
-            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes2}'"
+            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
         df2 = data_getting(inputpath_optiondata2)
         df2 = optiondata_greeksprocessing(df2)
     
