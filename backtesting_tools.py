@@ -111,6 +111,7 @@ class Back_testing_processing:
         df4.set_index('valuation_date', drop=True, inplace=True)
         slice_df1 = df4[['组合净值', '基准净值']]
         slice_df2 = df4['超额净值']
+        print(slice_df1)
         self.draw_gapth(slice_df1, outputpath, '组合基准对比')
         fig_filename = os.path.join(outputpath, f"组合基准对比图.png")
         pdf.image(fig_filename)

@@ -970,6 +970,50 @@ def index_weight_withdraw(index_type, available_date):
         
     return df
 
+
+def crossSection_index_return_withdraw(index_type, available_date, realtime=False):
+    """
+    提取指数收益率数据
+
+    Args:
+        index_type (str): 指数类型
+        available_date (str): 日期
+
+    Returns:
+        float or None: 指数收益率
+    """
+    short_name = index_mapping(index_type, 'code')
+    if realtime == False:
+        available_date2 = intdate_transfer(available_date)
+        inputpath_indexreturn = glv('index_data')
+        if source == 'local':
+            inputpath_indexreturn = file_withdraw(inputpath_indexreturn, available_date2)
+        else:
+            inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date='{available_date}' AND code='{short_name}'"
+        df = data_getting(inputpath_indexreturn)
+        try:
+            index_return = df[df['code'] == short_name]['pct_chg'].tolist()[0]
+            index_return = float(index_return)
+        except:
+            index_return = None
+    else:
+        inputpath_indexreturn = glv('input_indexreturn_realtime')
+        if source == 'local':
+            df = data_getting(inputpath_indexreturn, sheet_name='indexreturn')
+            try:
+                index_return = df[short_name].tolist()[0]
+                index_return = float(index_return)
+            except:
+                index_return = None
+        else:
+            inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{short_name}' "
+            df = data_getting(inputpath_indexreturn)
+            try:
+                index_return = df['ret'].tolist()[0]
+                index_return = float(index_return)
+            except:
+                index_return = None
+    return index_return
 def crossSection_index_return_withdraw(index_type, available_date,realtime=False):
     """
     提取指数收益率数据
@@ -1472,7 +1516,8 @@ def backtesting_report(df_portfolio=pd.DataFrame(),outputpath=None,index_type=No
         if 'valuation_date' not in df_portfolio.columns.tolist():
             print('输入的portfolio必须为时序数据')
         else:
-            BTP.back_testing_history(df_portfolio, outputpath, index_type, signal_name)
+            index_short=index_mapping(index_type,'code')
+            BTP.back_testing_history(df_portfolio, outputpath, index_short, signal_name)
 #入库标准化模块
 class sqlSaving_main:
     def __init__(self,config_path=None,parameter_name=None):
