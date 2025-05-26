@@ -45,7 +45,7 @@ def source_getting():
         source = 'local'
     return source
 
-def get_db_connection(use_database2=False):
+def get_db_connection(config_path=None,use_database2=False):
     """
     获取数据库连接
     
@@ -59,8 +59,11 @@ def get_db_connection(use_database2=False):
         return None
         
     try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(current_dir, 'tools_path_config.json')
+        if config_path==None:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(current_dir, 'tools_path_config.json')
+        else:
+            config_path=config_path
         
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
@@ -462,7 +465,7 @@ def data_reader(filepath, dtype=None, index_col=None,sheet_name=None):
         else:
             return pd.DataFrame()
 
-def data_getting(path,sheet_name=None):
+def data_getting(path,config_path=None,sheet_name=None):
     """
     获取数据
     
@@ -478,9 +481,9 @@ def data_getting(path,sheet_name=None):
     else:
         try:
             # 首先尝试主数据库
-            conn = get_db_connection()
+            conn = get_db_connection(config_path)
             if conn is None:
-                conn = get_db_connection(use_database2=True)
+                conn = get_db_connection(config_path,use_database2=True)
             
             if conn is not None:
                 try:
@@ -489,13 +492,13 @@ def data_getting(path,sheet_name=None):
                     
                     # 如果主数据库没有数据，尝试第二个数据库
                     if df.empty:
-                        conn2 = get_db_connection(use_database2=True)
+                        conn2 = get_db_connection(config_path,use_database2=True)
                         if conn2 is not None:
                             df = pd.read_sql(path, con=conn2)
                             conn2.close()
                 except Exception:
                     # 如果主数据库查询失败，尝试备用数据库
-                    conn2 = get_db_connection(use_database2=True)
+                    conn2 = get_db_connection(config_path,use_database2=True)
                     if conn2 is not None:
                         try:
                             df = pd.read_sql(path, con=conn2)
@@ -1060,7 +1063,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
 
 
 
-def crossSection_index_factorexposure_withdraw_new(index_type, available_date):
+def crossSection_index_factorexposure_withdraw(index_type, available_date):
     """
     提取指数因子暴露数据
     
@@ -1084,7 +1087,7 @@ def crossSection_index_factorexposure_withdraw_new(index_type, available_date):
         df = pd.DataFrame()
     else:
         try:
-            df = df.drop(columns=['organization', 'id', 'metadata_id'])
+            df = df.drop(columns=['organization'])
         except:
             pass
     return df
@@ -1133,7 +1136,7 @@ def stockdata_withdraw(available_date,realtime=False):
             inputpath_stockreturn = inputpath_stockreturn + f" WHERE type='stock'"
             df = data_getting(inputpath_stockreturn)
             df=df[['code','close','pre_close','ret']]
-        df.columns = ['code', 'close', 'close_yes','pct_chg']
+        df.columns = ['code', 'close', 'pre_close','pct_chg']
         df['pct_chg']=df['pct_chg']/100
     else:
         df=crossSection_stockdata_local_withdraw(available_date)
@@ -1204,27 +1207,33 @@ def cbdata_withdraw(available_date,realtime=False):
     """
 
     if realtime==False:
-        yes = last_workday_calculate(available_date)
-        yes2 = intdate_transfer(yes)
+        yes2 = last_workday_calculate(available_date)
+        int_yes2 = intdate_transfer(yes2)
         available_date2 = intdate_transfer(available_date)
     else:
         print('暂时没有realtime的可转债数据，用日频数据替代')
         available_date = date.today()
+        available_date=strdate_transfer(available_date)
         yes = last_workday_calculate(available_date)
-        available_date2 = intdate_transfer(yes)
-        yes2 = intdate_transfer(last_workday_calculate(yes))
+        available_date=yes
+        available_date2=intdate_transfer(available_date)
+        yes2 = last_workday_calculate(yes)
+        int_yes2=intdate_transfer(yes2)
     inputpath_cbdata = glv('input_cbdata')
     if source == 'local':
         inputpath_cbdata1 = file_withdraw(inputpath_cbdata, available_date2)
-        inputpath_cbdata2 = file_withdraw(inputpath_cbdata, yes2)
+        inputpath_cbdata2 = file_withdraw(inputpath_cbdata, int_yes2)
     else:
         inputpath_cbdata1 = inputpath_cbdata + f" WHERE valuation_date='{available_date}'"
-        inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes}'"
+        inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes2}'"
     df = data_getting(inputpath_cbdata1)
     df2 = data_getting(inputpath_cbdata2)
-    df2 = df2[['code', 'delta']]
-    df2.columns = ['code', 'delta_yes']
-    df = df.merge(df2, on='code', how='left')
+    try:
+        df2 = df2[['code', 'delta']]
+        df2.columns = ['code', 'delta_yes']
+        df = df.merge(df2, on='code', how='left')
+    except:
+        df['delta_yes']=None
     return df
 
 # ============= 期权和期货数据处理函数 =============
@@ -1305,7 +1314,7 @@ def optiondata_withdraw(available_date,realtime=False):
         else:
             inputpath_optiondata_realtime = inputpath_optiondata_realtime + f" WHERE type='option'"
             df = data_getting(inputpath_optiondata_realtime)
-            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes2}'"
+            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
         df2 = data_getting(inputpath_optiondata2)
         df2 = optiondata_greeksprocessing(df2)
     
