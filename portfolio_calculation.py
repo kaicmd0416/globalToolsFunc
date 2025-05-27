@@ -112,11 +112,10 @@ class portfolio_calculation:
     def mktdata_data_processing(self):
         # Initialize list to store non-empty processed DataFrames
         processed_dfs = []
-        required_column=['code','close','pre_close','pct_chg']
+        required_column=['code','close','pre_close']
         # Process convertible bond if not empty
         if not self.df_convertible_bond.empty:
             df_convertible_bond=self.df_convertible_bond.copy()
-            df_convertible_bond['pct_chg']=(df_convertible_bond['close']-df_convertible_bond['pre_close'])/df_convertible_bond['pre_close']
             df_convertible_bond=df_convertible_bond[required_column+['delta','delta_yes']]
             df_convertible_bond['class']='convertible_bond'
             df_convertible_bond['adjfactor']=1
@@ -129,7 +128,7 @@ class portfolio_calculation:
         # Process ETF if not empty
         if not self.df_etf.empty:
             df_etf=self.df_etf.copy()
-            df_etf=df_etf[required_column]
+            df_etf=df_etf[required_column+['adjfactor', 'adjfactor_yes']]
             df_etf['class']='etf'
             df_etf['multiplier']=100
             df_etf['delta']=1
@@ -141,7 +140,6 @@ class portfolio_calculation:
         # Process future if not empty
         if not self.df_future.empty:
             df_future=self.df_future.copy()
-            df_future['pct_chg']=(df_future['close']-df_future['pre_close'])/df_future['pre_close']
             df_future=df_future[required_column+['multiplier']]
             df_future['class']='future'
             df_future['delta']=1
@@ -157,7 +155,6 @@ class portfolio_calculation:
         # Process option if not empty
         if not self.df_option.empty:
             df_option=self.df_option.copy()
-            df_option['pct_chg'] = (df_option['close'] - df_option['pre_close']) / df_option['pre_close']
             df_option=df_option[required_column+['delta','delta_yes']]
             df_option['class']='option'
             df_option['multiplier']=100
@@ -274,6 +271,7 @@ class portfolio_calculation:
             print('以下数据存在缺失，将按照0处理')
             print(df_missing)
         df['price_difference']=(df['close']*df['adjfactor']-df['pre_close']*df['adjfactor_yes'])/df['adjfactor_yes']
+        df['pct_chg']=(df['close']*df['adjfactor']-df['pre_close']*df['adjfactor_yes'])/(df['pre_close']*df['adjfactor_yes'])
         df['profit']=df['price_difference']*df['quantity']*df['multiplier']
         df['risk_mktvalue']=df['close']*df['multiplier']*df['quantity']*df['delta']
         df['mkt_value']=df['mkt_value']*df['quantity']

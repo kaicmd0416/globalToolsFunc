@@ -1146,11 +1146,11 @@ def etfdata_withdraw(available_date,realtime=False):
         yes2=intdate_transfer(yes)
         inputpath_etfdata = glv('input_etfdata')
         if source == 'local':
+            inputpath_etfdata_yes = file_withdraw(inputpath_etfdata, yes2)
             inputpath_etfdata = file_withdraw(inputpath_etfdata, available_date2)
-            inputpath_etfdata_yes=file_withdraw(inputpath_etfdata, yes2)
         else:
-            inputpath_etfdata = inputpath_etfdata + f" WHERE valuation_date='{available_date}'"
             inputpath_etfdata_yes = inputpath_etfdata + f" WHERE valuation_date='{yes}'"
+            inputpath_etfdata = inputpath_etfdata + f" WHERE valuation_date='{available_date}'"
         df = data_getting(inputpath_etfdata)
         df_yes=data_getting(inputpath_etfdata_yes)
         try:

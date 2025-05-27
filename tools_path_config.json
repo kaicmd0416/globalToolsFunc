@@ -1,7 +1,7 @@
 {
     "components": {
         "data_source": {
-            "mode": "sql"
+            "mode": "local"
         },
         "database": {
             "database1": {
@@ -145,7 +145,7 @@
         },
         {
             "data_type": "timeseires_indexReturn",
-            "folder_name": "data_timeSeries\\index_data\\index_return.csv",
+            "folder_name": "data_timeSeries\\index_data\\IndexReturn.csv",
             "folder_type": "input_folder",
             "sql_sheet": "data_index"
         }
