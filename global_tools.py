@@ -1142,14 +1142,22 @@ def etfdata_withdraw(available_date,realtime=False):
     """
     if realtime==False:
         available_date2 = intdate_transfer(available_date)
+        yes=last_workday_calculate(available_date)
+        yes2=intdate_transfer(yes)
         inputpath_etfdata = glv('input_etfdata')
         if source == 'local':
             inputpath_etfdata = file_withdraw(inputpath_etfdata, available_date2)
+            inputpath_etfdata_yes=file_withdraw(inputpath_etfdata, yes2)
         else:
             inputpath_etfdata = inputpath_etfdata + f" WHERE valuation_date='{available_date}'"
+            inputpath_etfdata_yes = inputpath_etfdata + f" WHERE valuation_date='{yes}'"
         df = data_getting(inputpath_etfdata)
+        df_yes=data_getting(inputpath_etfdata_yes)
         try:
            df['pct_chg'] = (df['close'] - df['pre_close']) / df['pre_close']
+           df_yes.rename(columns={'adjfactor':'adjfactor_yes'},inplace=True)
+           df_yes=df_yes[['code','adjfactor_yes']]
+           df=df.merge(df_yes,on='code',how='left')
         except:
             pass
     else:
@@ -1167,6 +1175,8 @@ def etfdata_withdraw(available_date,realtime=False):
             except:
                 pass
         df.columns = ['code', 'close', 'pre_close', 'pct_chg']
+        df['adjfactor']=1
+        df['adjfactor_yes']=1
     return df
 
 def cbdata_withdraw(available_date,realtime=False):
@@ -1419,7 +1429,7 @@ def weight_df_standardization(df):
 
     return pd.concat(result_dfs, ignore_index=True)
 
-def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df_holding=pd.DataFrame(),account_money=10000000,index_type=None,cost=0.00085,realtime=False,adj_source='wind',weight_standardize=False):
+def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df_holding=pd.DataFrame(),account_money=10000000,index_type=None,cost_stock=0.00085,cost_etf=0.0003,cost_future=0.00006,cost_option=0.01,cost_convertiblebond=0.0007,realtime=False,adj_source='wind',weight_standardize=False):
     if weight_standardize==True:
         if not df_initial.empty:
             df_initial=weight_df_standardization(df_initial)
@@ -1457,23 +1467,25 @@ def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df
              print(str(available_date) + 'onvertible_bond_data为空,可能会导致计算结果不准')
          if df_adj_factor.empty:
              print(str(available_date) + 'stock_adj_factor为空,可能会导致计算结果不准')
+         if df_adj_factor.empty:
+             print(str(available_date) + 'stock_adj_factor为空,可能会导致计算结果不准')
          if df_stock.empty and df_future.empty and df_etf.empty and df_option.empty and df_convertible_bond.empty and df_adj_factor.empty:
             print(str(available_date) + '全部数据为空无法计算')
          else:
              if len(day_list) > 1:
                  if i == 0:
                      pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                                df_convertible_bond, df_adj_factor, account_money, cost)
+                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond)
                      df_portfolio = pc.portfolio_calculation_main()
                      i += 1
                  else:
                      df_initial = df_holding
                      pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                                df_convertible_bond, df_adj_factor, account_money, cost)
+                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond)
                      df_portfolio = pc.portfolio_calculation_main()
              else:
                  pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                            df_convertible_bond, df_adj_factor, account_money, cost)
+                                            df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond)
                  df_portfolio = pc.portfolio_calculation_main()
              if index_type != None:
                  index_return = crossSection_index_return_withdraw(index_type, available_date, realtime)
