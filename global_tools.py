@@ -45,6 +45,16 @@ def source_getting():
         source = 'local'
     return source
 
+
+def source_getting2(config_path):
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+        source = config_data['components']['data_source']['mode']
+    except Exception as e:
+        print(f"获取配置出错: {str(e)}")
+        source = 'local'
+    return source
 def get_db_connection(config_path=None,use_database2=False):
     """
     获取数据库连接
@@ -55,23 +65,25 @@ def get_db_connection(config_path=None,use_database2=False):
     Returns:
         pymysql.connections.Connection: 数据库连接对象
     """
-    if source == 'local':
+    if config_path == None:
+        source2=source
+    else:
+        source2=source_getting2(config_path)
+    if source2 == 'local':
         return None
-        
     try:
-        if config_path==None:
+        if config_path == None:
             current_dir = os.path.dirname(os.path.abspath(__file__))
             config_path = os.path.join(current_dir, 'tools_path_config.json')
         else:
-            config_path=config_path
-        
+            config_path = config_path
+
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
-        
+
         # 选择数据库配置
         db_key = 'database2' if use_database2 else 'database1'
         db_config = config['components']['database'][db_key]
-        
         connection = pymysql.connect(
             host=db_config['host'],
             port=db_config['port'],
@@ -465,7 +477,7 @@ def data_reader(filepath, dtype=None, index_col=None,sheet_name=None):
         else:
             return pd.DataFrame()
 
-def data_getting(path,config_path=None,sheet_name=None):
+def data_getting_glb(path,config_path=None,sheet_name=None):
     """
     获取数据
     
@@ -519,6 +531,62 @@ def data_getting(path,config_path=None,sheet_name=None):
         print(f"未找到数据: {path}")
     return df
 
+
+def data_getting(path, config_path=None, sheet_name=None):
+    """
+    获取数据
+
+    Args:
+        path (str): 数据路径或SQL查询
+
+    Returns:
+        pandas.DataFrame: 获取的数据
+    """
+    source2=source_getting2(config_path)
+    df = pd.DataFrame()
+    if source2 == 'local':
+        df = data_reader(path, sheet_name=sheet_name)
+    else:
+
+        try:
+            # 首先尝试主数据库
+            conn = get_db_connection(config_path)
+            if conn is None:
+                conn = get_db_connection(config_path, use_database2=True)
+
+            if conn is not None:
+                try:
+                    df = pd.read_sql(path, con=conn)
+                    conn.close()
+
+                    # 如果主数据库没有数据，尝试第二个数据库
+                    if df.empty:
+                        conn2 = get_db_connection(config_path, use_database2=True)
+                        if conn2 is not None:
+                            df = pd.read_sql(path, con=conn2)
+                            conn2.close()
+                except Exception:
+                    # 如果主数据库查询失败，尝试备用数据库
+                    conn2 = get_db_connection(config_path, use_database2=True)
+                    if conn2 is not None:
+                        try:
+                            df = pd.read_sql(path, con=conn2)
+                            conn2.close()
+                        except Exception:
+                            pass
+
+            # 处理数据
+            if not df.empty:
+                for col in df.select_dtypes(include=['object']).columns:
+                    df[col] = df[col].astype(str).str.strip()
+
+        except Exception as e:
+            if df.empty:
+                print(f"数据获取失败: {str(e)}")
+
+    if df.empty:
+        print(f"未找到数据: {path}")
+    return df
 def factor_universe_withdraw(type='new'):
     """
     获取股票池数据
@@ -533,7 +601,7 @@ def factor_universe_withdraw(type='new'):
         inputpath = glv('stock_universe_new')
     elif type == 'old':
         inputpath = glv('stock_universe_old')
-    df_universe = data_getting(inputpath)
+    df_universe = data_getting_glb(inputpath)
     return df_universe
 
 # ============= 日期处理函数 =============
@@ -547,7 +615,7 @@ def Chinese_valuation_date():
     """
     try:
         inputpath = glv('valuation_date')
-        df_date = data_getting(inputpath)
+        df_date = data_getting_glb(inputpath)
         if df_date.empty:
             return pd.DataFrame(columns=['valuation_date'])
             
@@ -815,7 +883,7 @@ def last_weeks_lastday():
     today = date.today()
     today = today.strftime('%Y-%m-%d')
     inputpath = glv('weeks_lastday')
-    df_lastday = data_getting(inputpath)
+    df_lastday = data_getting_glb(inputpath)
     if source=='sql':
         df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
     if df_lastday.empty:
@@ -835,7 +903,7 @@ def last_weeks_lastday2(date):
         str: 上周最后工作日
     """
     inputpath = glv('weeks_lastday')
-    df_lastday = data_getting(inputpath)
+    df_lastday = data_getting_glb(inputpath)
     if source=='sql':
         df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
     if df_lastday.empty:
@@ -857,7 +925,7 @@ def weeks_firstday(date):
         str: 周第一个工作日
     """
     inputpath = glv('weeks_firstday')
-    df_firstday = data_getting(inputpath)
+    df_firstday = data_getting_glb(inputpath)
     if source=='sql':
         df_firstday=df_firstday[df_firstday['type']=='weeksFirstDay']
     if df_firstday.empty:
@@ -879,7 +947,7 @@ def next_weeks_lastday2(date):
     date = pd.to_datetime(date)
     date = date.strftime('%Y-%m-%d')
     inputpath = glv('weeks_lastday')
-    df_lastday = data_getting(inputpath)
+    df_lastday = data_getting_glb(inputpath)
     if source=='sql':
         df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
     if df_lastday.empty:
@@ -960,7 +1028,7 @@ def index_weight_withdraw(index_type, available_date):
     else:
         inputpath_index = inputpath_index + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
     
-    df = data_getting(inputpath_index)
+    df = data_getting_glb(inputpath_index)
     if df.empty:
         print(f"未找到指数 {index_type} 在 {available_date} 的权重数据")
         return pd.DataFrame()
@@ -994,7 +1062,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
             inputpath_indexreturn = file_withdraw(inputpath_indexreturn, available_date2)
         else:
             inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date='{available_date}' AND code='{short_name}'"
-        df = data_getting(inputpath_indexreturn)
+        df = data_getting_glb(inputpath_indexreturn)
         try:
             index_return=df[df['code']==short_name]['pct_chg'].tolist()[0]
             index_return=float(index_return)
@@ -1003,7 +1071,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
     else:
         inputpath_indexreturn=glv('input_indexreturn_realtime')
         if source == 'local':
-            df=data_getting(inputpath_indexreturn,sheet_name='indexreturn')
+            df=data_getting_glb(inputpath_indexreturn,sheet_name='indexreturn')
             try:
                 index_return=df[short_name].tolist()[0]
                 index_return=float(index_return)
@@ -1011,7 +1079,7 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
                 index_return=None
         else:
             inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{short_name}' "
-            df=data_getting(inputpath_indexreturn)
+            df=data_getting_glb(inputpath_indexreturn)
             try:
                 index_return=df['ret'].tolist()[0]
                 index_return=float(index_return)
@@ -1040,7 +1108,7 @@ def crossSection_index_factorexposure_withdraw(index_type, available_date):
         inputpath_indexexposure = file_withdraw(inputpath_indexexposure, available_date2)
     else:
         inputpath_indexexposure = inputpath_indexexposure + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
-    df = data_getting(inputpath_indexexposure)
+    df = data_getting_glb(inputpath_indexexposure)
     if df.empty:
         df = pd.DataFrame()
     else:
@@ -1058,7 +1126,7 @@ def timeSeries_index_return_withdraw():
         pandas.DataFrame: 时间序列指数收益率数据
     """
     inputpath_indexreturn = glv('timeseires_indexReturn')
-    df = data_getting(inputpath_indexreturn)
+    df = data_getting_glb(inputpath_indexreturn)
     if source=='sql':
         df=df[['valuation_date','code','pct_chg']]
         df=sql_to_timeseries(df)
@@ -1075,7 +1143,7 @@ def timeSeries_index_close_withdraw():
         pandas.DataFrame: 时间序列指数收益率数据
     """
     inputpath_indexreturn = glv('timeseires_indexReturn')
-    df = data_getting(inputpath_indexreturn)
+    df = data_getting_glb(inputpath_indexreturn)
     if source == 'sql':
         df = df[['valuation_date', 'code', 'close']]
         df = sql_to_timeseries(df)
@@ -1094,8 +1162,8 @@ def crossSection_stockdata_local_withdraw(available_date):
     else:
         inputpath_stockclose1 = inputpath_stockclose + f" WHERE valuation_date='{available_date}'"
         inputpath_stockclose2 = inputpath_stockclose + f" WHERE valuation_date='{available_date}'"
-    df = data_getting(inputpath_stockclose1)
-    df2 = data_getting(inputpath_stockclose2)
+    df = data_getting_glb(inputpath_stockclose1)
+    df2 = data_getting_glb(inputpath_stockclose2)
     df2=df2[['code','adjfactor_jy','adjfactor_wind']]
     df2.columns=['code','adjfactor_jy_yes','adjfactor_wind_yes']
     df=df.merge(df2,on='code',how='left')
@@ -1104,11 +1172,11 @@ def stockdata_withdraw(available_date,realtime=False):
     if realtime == True:
         inputpath_stockreturn = glv('input_stockclose_realtime')
         if source == 'local':
-            df = data_getting(inputpath_stockreturn,'stockprice')
+            df = data_getting_glb(inputpath_stockreturn,'stockprice')
             df=df[['代码','close','pre_close','return']]
         else:
             inputpath_stockreturn = inputpath_stockreturn + f" WHERE type='stock'"
-            df = data_getting(inputpath_stockreturn)
+            df = data_getting_glb(inputpath_stockreturn)
             df=df[['code','close','pre_close','ret']]
         df.columns = ['code', 'close', 'pre_close','pct_chg']
         df['pct_chg']=df['pct_chg']/100
@@ -1151,8 +1219,8 @@ def etfdata_withdraw(available_date,realtime=False):
         else:
             inputpath_etfdata_yes = inputpath_etfdata + f" WHERE valuation_date='{yes}'"
             inputpath_etfdata = inputpath_etfdata + f" WHERE valuation_date='{available_date}'"
-        df = data_getting(inputpath_etfdata)
-        df_yes=data_getting(inputpath_etfdata_yes)
+        df = data_getting_glb(inputpath_etfdata)
+        df_yes=data_getting_glb(inputpath_etfdata_yes)
         try:
            df['pct_chg'] = (df['close'] - df['pre_close']) / df['pre_close']
            df_yes.rename(columns={'adjfactor':'adjfactor_yes'},inplace=True)
@@ -1163,12 +1231,12 @@ def etfdata_withdraw(available_date,realtime=False):
     else:
         inputpath_etfdata = glv('input_etfdata_realtime')
         if source == 'local':
-            df = data_getting(inputpath_etfdata,'etf_info')
+            df = data_getting_glb(inputpath_etfdata,'etf_info')
             df = df[['代码', '现价', '前收']]
             df['pct_chg']=(df['现价']-df['前收'])/df['前收']
         else:
             inputpath_etfdata= inputpath_etfdata + f" WHERE type='etf'"
-            df = data_getting(inputpath_etfdata)
+            df = data_getting_glb(inputpath_etfdata)
             df = df[['code', 'close', 'pre_close']]
             try:
                 df['pct_chg'] = (df['close'] - df['pre_close']) / df['pre_close']
@@ -1210,8 +1278,8 @@ def cbdata_withdraw(available_date,realtime=False):
     else:
         inputpath_cbdata1 = inputpath_cbdata + f" WHERE valuation_date='{available_date}'"
         inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes2}'"
-    df = data_getting(inputpath_cbdata1)
-    df2 = data_getting(inputpath_cbdata2)
+    df = data_getting_glb(inputpath_cbdata1)
+    df2 = data_getting_glb(inputpath_cbdata2)
     try:
         df2 = df2[['code', 'delta']]
         df2.columns = ['code', 'delta_yes']
@@ -1282,8 +1350,8 @@ def optiondata_withdraw(available_date,realtime=False):
         else:
             inputpath_optiondata1 = inputpath_optiondata + f" WHERE valuation_date='{available_date}'"
             inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
-        df = data_getting(inputpath_optiondata1)
-        df2 = data_getting(inputpath_optiondata2)
+        df = data_getting_glb(inputpath_optiondata1)
+        df2 = data_getting_glb(inputpath_optiondata2)
         df = optiondata_greeksprocessing(df)
         df2 = optiondata_greeksprocessing(df2)
     else:
@@ -1293,13 +1361,13 @@ def optiondata_withdraw(available_date,realtime=False):
         inputpath_optiondata = glv('input_optiondata')
         inputpath_optiondata_realtime=glv('input_optiondata_realtime')
         if source == 'local':
-            df = data_getting(inputpath_optiondata_realtime, 'option_info')
+            df = data_getting_glb(inputpath_optiondata_realtime, 'option_info')
             inputpath_optiondata2 = file_withdraw(inputpath_optiondata, yes2)
         else:
             inputpath_optiondata_realtime = inputpath_optiondata_realtime + f" WHERE type='option'"
-            df = data_getting(inputpath_optiondata_realtime)
+            df = data_getting_glb(inputpath_optiondata_realtime)
             inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
-        df2 = data_getting(inputpath_optiondata2)
+        df2 = data_getting_glb(inputpath_optiondata2)
         df2 = optiondata_greeksprocessing(df2)
     
     if realtime == True:
@@ -1329,14 +1397,14 @@ def futuredata_withdraw(available_date,realtime=False):
             inputpath_futuredata = file_withdraw(inputpath_futuredata, available_date2)
         else:
             inputpath_futuredata = inputpath_futuredata + f" WHERE valuation_date='{available_date}'"
-        df = data_getting(inputpath_futuredata)
+        df = data_getting_glb(inputpath_futuredata)
     else:
         inputpath_futuredata = glv('input_futuredata_realtime')
         if source == 'local':
-            df = data_getting(inputpath_futuredata, 'future_info')
+            df = data_getting_glb(inputpath_futuredata, 'future_info')
         else:
             inputpath_futuredata = inputpath_futuredata + f" WHERE type='future'"
-            df = data_getting(inputpath_futuredata)
+            df = data_getting_glb(inputpath_futuredata)
     if realtime == True:
         if source == 'local':
             df = df[['代码', '现价', '前结算价', '前收盘价','合约系数']]
