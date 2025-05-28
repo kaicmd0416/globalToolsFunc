@@ -180,8 +180,8 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/global_tools.py</url>
-          <line>534</line>
-          <option name="timeStamp" value="2" />
+          <line>1607</line>
+          <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
