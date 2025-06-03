@@ -547,7 +547,6 @@ def data_getting(path, config_path=None, sheet_name=None):
     if source2 == 'local':
         df = data_reader(path, sheet_name=sheet_name)
     else:
-
         try:
             # 首先尝试主数据库
             conn = get_db_connection(config_path)
@@ -586,6 +585,12 @@ def data_getting(path, config_path=None, sheet_name=None):
 
     if df.empty:
         print(f"未找到数据: {path}")
+    for column in df.columns.tolist():
+        if column!='valuation_date':
+            try:
+                df[column]=df[column].astype(float)
+            except:
+                pass
     return df
 def factor_universe_withdraw(type='new'):
     """
