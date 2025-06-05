@@ -118,7 +118,7 @@ class TableManager:
             if private_keys:
                 for private_key in private_keys:
                     exist_columns.append(private_key)
-                    columns.append(Column(private_key, String(255), nullable=False))
+                    columns.append(Column(private_key, String(100), nullable=False))
             # 根据DataFrame的列类型创建表结构
 
             for col in df.columns:
@@ -129,7 +129,7 @@ class TableManager:
                     elif pd.api.types.is_float_dtype(dtype):
                         columns.append(Column(col, Float))
                     else:
-                        columns.append(Column(col, String(255)))
+                        columns.append(Column(col, String(100)))
 
             # 创建表
             table = Table(table_name, self.metadata, *columns,
