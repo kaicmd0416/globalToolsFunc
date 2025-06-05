@@ -1606,7 +1606,45 @@ class sqlSaving_main:
             pass
         else:
             self.SS.process_file(df)
+
+def table_manager(config_path, table_name):
+    """
+    删除指定的数据库表
+    
+    Args:
+        config_path (str): 配置文件路径
+        table_name (str): 要删除的表名
+    
+    Returns:
+        bool: 操作是否成功
+    """
+    try:
+        # 获取数据库连接
+        conn = get_db_connection(config_path)
+        if conn is None:
+            print("无法连接到数据库")
+            return False
             
+        # 创建游标
+        cursor = conn.cursor()
+        
+        # 执行DROP TABLE语句
+        drop_query = f"DROP TABLE IF EXISTS {table_name};"
+        cursor.execute(drop_query)
+        
+        # 提交更改
+        conn.commit()
+        
+        # 关闭游标和连接
+        cursor.close()
+        conn.close()
+        
+        print(f"成功删除表: {table_name}")
+        return True
+        
+    except Exception as e:
+        print(f"删除表时发生错误: {str(e)}")
+        return False
 
 
 
