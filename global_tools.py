@@ -1008,7 +1008,7 @@ def index_mapping(index_name, type='shortname'):
         if type == 'shortname':
             return 'zzA500'
         else:
-            return '000510.SH'
+            return '000510.CSI'
     else:
         print(f'{index_name} 不存在')
         return None
