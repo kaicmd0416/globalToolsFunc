@@ -16,6 +16,7 @@ import sys
 from datetime import time, datetime, timedelta, date
 from scipy.io import loadmat
 import re
+from dbutils.pooled_db import PooledDB
 # 导入全局配置
 from global_dic import get as glv
 from portfolio_calculation import portfolio_calculation
@@ -26,7 +27,107 @@ from sqlalchemy import text
 warnings.filterwarnings("ignore")
 
 # 全局变量
-global df_date, source
+global df_date, source, db_pools
+
+# 初始化数据库连接池字典
+db_pools = {}
+
+def get_db_connection(config_path=None, use_database2=False, max_retries=3):
+    """
+    获取数据库连接，使用连接池管理
+    
+    Args:
+        config_path (str, optional): 配置文件路径
+        use_database2 (bool, optional): 是否使用第二个数据库。默认为False。
+        max_retries (int, optional): 最大重试次数。默认为3。
+    
+    Returns:
+        pymysql.connections.Connection: 数据库连接对象
+    """
+    if config_path == None:
+        source2 = source
+    else:
+        source2 = source_getting2(config_path)
+        
+    if source2 == 'local':
+        return None
+        
+    try:
+        if config_path == None:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(current_dir, 'tools_path_config.json')
+            
+        # 生成连接池的唯一键
+        pool_key = f"{config_path}_{use_database2}"
+        
+        # 如果连接池不存在，创建新的连接池
+        if pool_key not in db_pools:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                
+            # 选择数据库配置
+            db_key = 'database2' if use_database2 else 'database1'
+            db_config = config['components']['database'][db_key]
+            
+            # 创建连接池
+            db_pools[pool_key] = PooledDB(
+                creator=pymysql,  # 使用pymysql作为数据库连接器
+                maxconnections=6,  # 连接池最大连接数
+                mincached=2,      # 初始化时，连接池中至少创建的空闲的链接
+                maxcached=5,      # 连接池中最多闲置的链接
+                maxshared=3,      # 链接最大共享数
+                blocking=True,    # 连接池中如果没有可用连接后，是否阻塞等待
+                maxusage=None,    # 一个链接最多被重复使用的次数，None表示无限制
+                setsession=[],    # 开始会话前执行的命令列表
+                ping=1,           # ping MySQL服务端，检查是否服务可用
+                host=db_config['host'],
+                port=db_config['port'],
+                user=db_config['user'],
+                password=db_config['password'],
+                database=db_config['database'],
+                charset=db_config['charset'],
+                connect_timeout=100,  # 连接超时时间（秒）
+                read_timeout=300,     # 读取超时时间（秒）
+                write_timeout=300,    # 写入超时时间（秒）
+                autocommit=True      # 自动提交
+            )
+        
+        # 重试机制
+        for attempt in range(max_retries):
+            try:
+                # 从连接池获取连接
+                conn = db_pools[pool_key].connection()
+                # 测试连接是否有效
+                with conn.cursor() as cursor:
+                    cursor.execute("SELECT 1")
+                return conn
+            except (pymysql.err.OperationalError, pymysql.err.TimeoutError) as e:
+                if attempt == max_retries - 1:  # 最后一次尝试
+                    print(f"数据库连接失败，已重试{max_retries}次: {str(e)}")
+                    raise
+                print(f"数据库连接失败，正在重试 ({attempt + 1}/{max_retries}): {str(e)}")
+                time.sleep(1)  # 等待1秒后重试
+                
+    except Exception as e:
+        print(f"数据库连接失败: {str(e)}")
+        return None
+
+def close_all_connections():
+    """
+    关闭所有数据库连接池
+    """
+    global db_pools
+    for pool in db_pools.values():
+        try:
+            pool.close()
+        except:
+            pass
+    db_pools.clear()
+
+# 在程序退出时关闭所有连接
+import atexit
+atexit.register(close_all_connections)
+
 def source_getting():
     """
     获取数据源配置
@@ -55,51 +156,7 @@ def source_getting2(config_path):
         print(f"获取配置出错: {str(e)}")
         source = 'local'
     return source
-def get_db_connection(config_path=None,use_database2=False):
-    """
-    获取数据库连接
-    
-    Args:
-        use_database2 (bool, optional): 是否使用第二个数据库。默认为False。
-    
-    Returns:
-        pymysql.connections.Connection: 数据库连接对象
-    """
-    if config_path == None:
-        source2=source
-    else:
-        source2=source_getting2(config_path)
-    if source2 == 'local':
-        return None
-    try:
-        if config_path == None:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(current_dir, 'tools_path_config.json')
-        else:
-            config_path = config_path
-
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-
-        # 选择数据库配置
-        db_key = 'database2' if use_database2 else 'database1'
-        db_config = config['components']['database'][db_key]
-        connection = pymysql.connect(
-            host=db_config['host'],
-            port=db_config['port'],
-            user=db_config['user'],
-            password=db_config['password'],
-            database=db_config['database'],
-            charset=db_config['charset']
-        )
-        return connection
-    except Exception as e:
-        print(f"数据库连接失败: {str(e)}")
-        return None
-
-# 初始化全局变量
-source = source_getting()
-
+source=source_getting()
 # ============= 基础工具函数 =============
 def sql_to_timeseries(df):
     df.columns = ['valuation_date', 'code', 'value']
@@ -589,6 +646,109 @@ def data_getting(path, config_path=None, sheet_name=None):
         if column!='valuation_date':
             try:
                 df[column]=df[column].astype(float)
+            except:
+                pass
+    return df
+
+
+def data_getting_glb_test(path, config_path=None, sheet_name=None):
+    """
+    获取数据
+
+    Args:
+        path (str): 数据路径或SQL查询
+
+    Returns:
+        pandas.DataFrame: 获取的数据
+    """
+    df = pd.DataFrame()
+    if source == 'local':
+        df = data_reader(path, sheet_name=sheet_name)
+    else:
+            # 首先尝试主数据库
+            conn = get_db_connection(config_path)
+            if conn is None:
+                conn = get_db_connection(config_path, use_database2=True)
+
+            if conn is not None:
+                    df = pd.read_sql(path, con=conn)
+                    conn.close()
+
+                    # 如果主数据库没有数据，尝试第二个数据库
+                    if df.empty:
+                        conn2 = get_db_connection(config_path, use_database2=True)
+                        if conn2 is not None:
+                            df = pd.read_sql(path, con=conn2)
+                            conn2.close()
+            else:
+                    # 如果主数据库查询失败，尝试备用数据库
+                    conn2 = get_db_connection(config_path, use_database2=True)
+                    if conn2 is not None:
+                        df = pd.read_sql(path, con=conn2)
+                        conn2.close()
+
+            # 处理数据
+            if not df.empty:
+                for col in df.select_dtypes(include=['object']).columns:
+                    df[col] = df[col].astype(str).str.strip()
+    if df.empty:
+        print(f"未找到数据: {path}")
+    for column in df.columns.tolist():
+        if column != 'valuation_date':
+            try:
+                df[column] = df[column].astype(float)
+            except:
+                pass
+    return df
+
+
+def data_getting_test(path, config_path=None, sheet_name=None):
+    """
+    获取数据
+
+    Args:
+        path (str): 数据路径或SQL查询
+
+    Returns:
+        pandas.DataFrame: 获取的数据
+    """
+    source2 = source_getting2(config_path)
+    df = pd.DataFrame()
+    if source2 == 'local':
+        df = data_reader(path, sheet_name=sheet_name)
+    else:
+            # 首先尝试主数据库
+            conn = get_db_connection(config_path)
+            if conn is None:
+                conn = get_db_connection(config_path, use_database2=True)
+
+            if conn is not None:
+                    df = pd.read_sql(path, con=conn)
+                    conn.close()
+
+                    # 如果主数据库没有数据，尝试第二个数据库
+                    if df.empty:
+                        conn2 = get_db_connection(config_path, use_database2=True)
+                        if conn2 is not None:
+                            df = pd.read_sql(path, con=conn2)
+                            conn2.close()
+            else:
+                    # 如果主数据库查询失败，尝试备用数据库
+                    conn2 = get_db_connection(config_path, use_database2=True)
+                    if conn2 is not None:
+                            df = pd.read_sql(path, con=conn2)
+                            conn2.close()
+            # 处理数据
+            if not df.empty:
+                for col in df.select_dtypes(include=['object']).columns:
+                    df[col] = df[col].astype(str).str.strip()
+
+    if df.empty:
+        print(f"未找到数据: {path}")
+    for column in df.columns.tolist():
+        if column != 'valuation_date':
+            try:
+                df[column] = df[column].astype(float)
             except:
                 pass
     return df
