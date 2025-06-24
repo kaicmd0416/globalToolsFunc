@@ -1748,9 +1748,10 @@ def backtesting_report(df_portfolio=pd.DataFrame(),outputpath=None,index_type=No
             BTP.back_testing_history(df_portfolio, outputpath, index_short, signal_name)
 #入库标准化模块
 class sqlSaving_main:
-    def __init__(self,config_path=None,parameter_name=None):
+    def __init__(self,config_path=None,parameter_name=None,delete=False):
         self.config_path=config_path
         self.parameter_name=parameter_name
+        self.delete=delete
         if self.config_path == None:
             print('找不到对应配置文件')
             raise TypeError
@@ -1759,7 +1760,7 @@ class sqlSaving_main:
                 print('参数名不能为空')
                 raise TypeError
             else:
-                self.SS = SqlSaving(self.config_path, self.parameter_name)
+                self.SS = SqlSaving(self.config_path, self.parameter_name,self.delete)
     def df_to_sql(self,df=pd.DataFrame()):
         if df.empty:
             print('输入的文件为空，无法入库')

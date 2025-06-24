@@ -6,6 +6,7 @@ import pandas as pd
 from sqlalchemy import inspect, Column, String, Integer, DateTime, Float, text, Table, MetaData, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine, text
+from sqlalchemy import bindparam
 
 Base = declarative_base()
 class ConfigReader:
@@ -226,16 +227,38 @@ class DatabaseWriter:
             print(f"Failed to create database engine: {str(e)}")
             raise
 
-    def write(self, df: pd.DataFrame, table_name: str, if_exists: str = 'append') -> None:
+    def write(self, df: pd.DataFrame, table_name: str, if_exists: str = 'append',delete=False) -> None:
         """
         写入数据到数据库
         :param df: 数据框
         :param table_name: 表名
         :param if_exists: 如果表存在时的处理方式 ('fail', 'replace', 'append')
+        :param delete: 是否删除指定valuation_date的数据
         """
         try:
+
             # Convert table name to lowercase to avoid case sensitivity issues
             table_name_lower = table_name.lower()
+            
+            # 如果delete=True，先删除指定valuation_date的数据
+            if delete:
+                valuation_list = df['valuation_date'].unique().tolist()
+                with self.engine.connect() as conn:
+                    # 使用expanding参数绑定方式
+                    delete_sql = f"DELETE FROM {table_name_lower} WHERE valuation_date IN :val_list"
+                    try:
+                        conn.execute(
+                            text(delete_sql).bindparams(bindparam('val_list', expanding=True)),
+                            {'val_list': valuation_list}
+                        )
+                        conn.commit()
+                        print(f"Successfully deleted {len(valuation_list)} valuation_date records from table {table_name_lower}")
+                    except Exception as e:
+                        print(f"Failed to delete from table {table_name_lower}: {str(e)}")
+                        conn.rollback()
+                        raise
+            
+            # 写入新数据
             df.to_sql(
                 name=table_name_lower,
                 con=self.engine,
@@ -310,7 +333,7 @@ class DatabaseWriter:
 class SqlSaving:
     """目录处理器基类"""
 
-    def __init__(self, config_path,task_name):
+    def __init__(self, config_path,task_name,delete):
         """
         初始化目录处理器
         :param task_name: 任务名称
@@ -332,6 +355,7 @@ class SqlSaving:
         self.writer = DatabaseWriter(self.db_url)
         self.table_manager = TableManager(self.writer.engine)
         self.processed_tables = set()  # 跟踪已处理的表
+        self.delete=delete
 
     def process_file(self, df: pd.DataFrame) -> None:
         """
@@ -345,7 +369,7 @@ class SqlSaving:
             self._create_or_update_table(df)
             print("表结构创建或更新完成")
             # 写入数据
-            self.writer.write(df, self.table_name)
+            self.writer.write(df, self.table_name,'replace',self.delete)
             print(f"数据已写入表: {self.table_name}")
         except Exception as e:
             error_msg = f"处理文件时发生错误: {str(e)}"
