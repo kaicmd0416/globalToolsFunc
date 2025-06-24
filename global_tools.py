@@ -764,8 +764,12 @@ def factor_universe_withdraw(type='new'):
     """
     if type == 'new':
         inputpath = glv('stock_universe_new')
+        if source == 'sql':
+            inputpath =str(inputpath)+ " Where type='stockuni_new'"
     elif type == 'old':
         inputpath = glv('stock_universe_old')
+        if source == 'sql':
+            inputpath =str(inputpath)+ " Where type='stockuni_old'"
     df_universe = data_getting_glb(inputpath)
     return df_universe
 
