@@ -574,9 +574,15 @@ def data_getting_glb(path,config_path=None,sheet_name=None):
                             conn2.close()
                         except Exception:
                             pass
-            
             # 处理数据
             if not df.empty:
+                if 'update_time' in df.columns:
+                    updatetime_list=df['update_time'].unique().tolist()
+                    if len(updatetime_list)==1:
+                        df = df.drop(columns=['update_time'])
+                    else:
+                        df = df[df['update_time'] == df['update_time'].max()]
+                        df = df.drop(columns=['update_time'])
                 for col in df.select_dtypes(include=['object']).columns:
                     df[col] = df[col].astype(str).str.strip()
                 
@@ -630,9 +636,15 @@ def data_getting(path, config_path=None, sheet_name=None):
                             conn2.close()
                         except Exception:
                             pass
-
             # 处理数据
             if not df.empty:
+                if 'update_time' in df.columns:
+                    updatetime_list = df['update_time'].unique().tolist()
+                    if len(updatetime_list) == 1:
+                        df = df.drop(columns=['update_time'])
+                    else:
+                        df = df[df['update_time'] == df['update_time'].max()]
+                        df = df.drop(columns=['update_time'])
                 for col in df.select_dtypes(include=['object']).columns:
                     df[col] = df[col].astype(str).str.strip()
 
@@ -646,109 +658,6 @@ def data_getting(path, config_path=None, sheet_name=None):
         if column!='valuation_date':
             try:
                 df[column]=df[column].astype(float)
-            except:
-                pass
-    return df
-
-
-def data_getting_glb_test(path, config_path=None, sheet_name=None):
-    """
-    获取数据
-
-    Args:
-        path (str): 数据路径或SQL查询
-
-    Returns:
-        pandas.DataFrame: 获取的数据
-    """
-    df = pd.DataFrame()
-    if source == 'local':
-        df = data_reader(path, sheet_name=sheet_name)
-    else:
-            # 首先尝试主数据库
-            conn = get_db_connection(config_path)
-            if conn is None:
-                conn = get_db_connection(config_path, use_database2=True)
-
-            if conn is not None:
-                    df = pd.read_sql(path, con=conn)
-                    conn.close()
-
-                    # 如果主数据库没有数据，尝试第二个数据库
-                    if df.empty:
-                        conn2 = get_db_connection(config_path, use_database2=True)
-                        if conn2 is not None:
-                            df = pd.read_sql(path, con=conn2)
-                            conn2.close()
-            else:
-                    # 如果主数据库查询失败，尝试备用数据库
-                    conn2 = get_db_connection(config_path, use_database2=True)
-                    if conn2 is not None:
-                        df = pd.read_sql(path, con=conn2)
-                        conn2.close()
-
-            # 处理数据
-            if not df.empty:
-                for col in df.select_dtypes(include=['object']).columns:
-                    df[col] = df[col].astype(str).str.strip()
-    if df.empty:
-        print(f"未找到数据: {path}")
-    for column in df.columns.tolist():
-        if column != 'valuation_date':
-            try:
-                df[column] = df[column].astype(float)
-            except:
-                pass
-    return df
-
-
-def data_getting_test(path, config_path=None, sheet_name=None):
-    """
-    获取数据
-
-    Args:
-        path (str): 数据路径或SQL查询
-
-    Returns:
-        pandas.DataFrame: 获取的数据
-    """
-    source2 = source_getting2(config_path)
-    df = pd.DataFrame()
-    if source2 == 'local':
-        df = data_reader(path, sheet_name=sheet_name)
-    else:
-            # 首先尝试主数据库
-            conn = get_db_connection(config_path)
-            if conn is None:
-                conn = get_db_connection(config_path, use_database2=True)
-
-            if conn is not None:
-                    df = pd.read_sql(path, con=conn)
-                    conn.close()
-
-                    # 如果主数据库没有数据，尝试第二个数据库
-                    if df.empty:
-                        conn2 = get_db_connection(config_path, use_database2=True)
-                        if conn2 is not None:
-                            df = pd.read_sql(path, con=conn2)
-                            conn2.close()
-            else:
-                    # 如果主数据库查询失败，尝试备用数据库
-                    conn2 = get_db_connection(config_path, use_database2=True)
-                    if conn2 is not None:
-                            df = pd.read_sql(path, con=conn2)
-                            conn2.close()
-            # 处理数据
-            if not df.empty:
-                for col in df.select_dtypes(include=['object']).columns:
-                    df[col] = df[col].astype(str).str.strip()
-
-    if df.empty:
-        print(f"未找到数据: {path}")
-    for column in df.columns.tolist():
-        if column != 'valuation_date':
-            try:
-                df[column] = df[column].astype(float)
             except:
                 pass
     return df
@@ -1765,12 +1674,12 @@ class sqlSaving_main:
                 raise TypeError
             else:
                 self.SS = SqlSaving(self.config_path, self.parameter_name,self.delete)
-    def df_to_sql(self,df=pd.DataFrame()):
+    def df_to_sql(self,df=pd.DataFrame(),delete_name=None,delet_key=None):
         if df.empty:
             print('输入的文件为空，无法入库')
             pass
         else:
-            self.SS.process_file(df)
+            self.SS.process_file(df,delete_name,delet_key)
 
 def table_manager(config_path, table_name):
     """

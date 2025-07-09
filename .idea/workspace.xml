@@ -7,6 +7,7 @@
     <list default="true" id="85b7af28-8efa-45db-b365-fbfb6ece69af" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/global_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/global_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sql_saving.py" beforeDir="false" afterPath="$PROJECT_DIR$/sql_saving.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,7 +32,7 @@
     "Python.portfolio_calculation.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "main",
-    "last_opened_file_path": "D:/globalToolsFunc"
+    "last_opened_file_path": "D:/code_new/Data_update"
   }
 }]]></component>
   <component name="RunManager">

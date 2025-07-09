@@ -227,7 +227,7 @@ class DatabaseWriter:
             print(f"Failed to create database engine: {str(e)}")
             raise
 
-    def write(self, df: pd.DataFrame, table_name: str, if_exists: str = 'append',delete=False) -> None:
+    def write(self, df: pd.DataFrame, table_name: str, if_exists: str = 'append',delete=False,delet_name=None,delet_key=None) -> None:
         """
         写入数据到数据库
         :param df: 数据框
@@ -242,17 +242,23 @@ class DatabaseWriter:
             
             # 如果delete=True，先删除指定valuation_date的数据
             if delete:
+                print(df)
                 valuation_list = df['valuation_date'].unique().tolist()
                 with self.engine.connect() as conn:
-                    # 使用expanding参数绑定方式
-                    delete_sql = f"DELETE FROM {table_name_lower} WHERE valuation_date IN :val_list"
+                    # 根据delet_name和delet_key是否为空决定SQL
+                    if delet_name is not None and delet_key is not None:
+                        delete_sql = f"DELETE FROM {table_name_lower} WHERE valuation_date IN :val_list AND {delet_name} = :delet_key"
+                        params = {'val_list': valuation_list, 'delet_key': delet_key}
+                    else:
+                        delete_sql = f"DELETE FROM {table_name_lower} WHERE valuation_date IN :val_list"
+                        params = {'val_list': valuation_list}
                     try:
                         conn.execute(
                             text(delete_sql).bindparams(bindparam('val_list', expanding=True)),
-                            {'val_list': valuation_list}
+                            params
                         )
                         conn.commit()
-                        print(f"Successfully deleted {len(valuation_list)} valuation_date records from table {table_name_lower}")
+                        print(f"Successfully deleted {len(valuation_list)} valuation_date records from table {table_name_lower}{f' where {delet_name} = {delet_key}' if delet_name and delet_key else ''}")
                     except Exception as e:
                         print(f"Failed to delete from table {table_name_lower}: {str(e)}")
                         conn.rollback()
@@ -357,7 +363,7 @@ class SqlSaving:
         self.processed_tables = set()  # 跟踪已处理的表
         self.delete=delete
 
-    def process_file(self, df: pd.DataFrame) -> None:
+    def process_file(self, df: pd.DataFrame,delet_name,delet_key) -> None:
         """
         处理单个文件
         :param file_path: 文件路径
@@ -369,7 +375,7 @@ class SqlSaving:
             self._create_or_update_table(df)
             print("表结构创建或更新完成")
             # 写入数据
-            self.writer.write(df, self.table_name,'replace',self.delete)
+            self.writer.write(df, self.table_name,'append',self.delete,delet_name,delet_key)
             print(f"数据已写入表: {self.table_name}")
         except Exception as e:
             error_msg = f"处理文件时发生错误: {str(e)}"
