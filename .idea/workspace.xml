@@ -4,11 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="85b7af28-8efa-45db-b365-fbfb6ece69af" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/global_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/global_tools.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sql_saving.py" beforeDir="false" afterPath="$PROJECT_DIR$/sql_saving.py" afterDir="false" />
-    </list>
+    <list default="true" id="85b7af28-8efa-45db-b365-fbfb6ece69af" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -32,7 +28,7 @@
     "Python.portfolio_calculation.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "main",
-    "last_opened_file_path": "D:/code_new/Data_update"
+    "last_opened_file_path": "D:/globalToolsFunc"
   }
 }]]></component>
   <component name="RunManager">
@@ -164,7 +160,7 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-python-sdk-5b207ade9991-746f403e7f0c-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-241.17890.14" />
+        <option value="bundled-python-sdk-babbdf50b680-746f403e7f0c-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-241.15989.155" />
       </set>
     </attachedChunks>
   </component>

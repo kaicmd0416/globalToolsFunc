@@ -3,11 +3,11 @@ import os
 import sys
 from typing import Dict, Any, Optional
 import pandas as pd
-from sqlalchemy import inspect, Column, String, Integer, DateTime, Float, text, Table, MetaData, UniqueConstraint
+from sqlalchemy import inspect,create_engine, MetaData, Table, Column, Float, String, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine, text
 from sqlalchemy import bindparam
-
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 Base = declarative_base()
 class ConfigReader:
     """配置读取器"""
@@ -102,54 +102,47 @@ class TableManager:
             self.engine.dispose()
 
 
-    def create_data_table(self, table_name: str, df: pd.DataFrame, private_keys: list[str] = None) -> None:
-        """
-        创建数据表
-        :param table_name: 表名
-        :param df: 数据框
-        :param private_keys list[str] 联合索引集合
-        """
-        try:
-            # 转换表名为小写
-            table_name = table_name.lower()
-
-            # 创建数据表
-            columns = []
-            exist_columns = []
-            if private_keys:
-                for private_key in private_keys:
-                    exist_columns.append(private_key)
-                    columns.append(Column(private_key, String(100), nullable=False))
-            # 根据DataFrame的列类型创建表结构
-
-            for col in df.columns:
-                if col not in exist_columns:  # 跳过已添加的列
-                    dtype = df[col].dtype
-                    if pd.api.types.is_integer_dtype(dtype):
-                        columns.append(Column(col, Integer))
-                    elif pd.api.types.is_float_dtype(dtype):
-                        columns.append(Column(col, Float))
-                    else:
-                        columns.append(Column(col, String(100)))
-
-            # 创建表
-            table = Table(table_name, self.metadata, *columns,
-                          mysql_engine='InnoDB',
-                          mysql_charset='utf8mb4',
-                          mysql_collate='utf8mb4_unicode_ci')
-            if private_keys:
-                unique_constraint = UniqueConstraint(*private_keys, name=f'uk_{table_name}_private_keys')
-                table.append_constraint(unique_constraint)
-            table.create(self.engine)
-
-            print(f"Created table: {table_name}")
-
-        except Exception as e:
-            print(f"Error creating table {table_name}: {str(e)}")
-            raise
-        finally:
-            # 确保连接被正确关闭
-            self.engine.dispose()
+    def create_data_table(self, table_name: str, df: pd.DataFrame,schema: dict,private_keys: list[str] = None) -> None:
+        columns = []
+        for col_name, col_info in schema.items():
+            col_type = col_info['type']
+            # 处理长度
+            if col_type == 'String':
+                length = col_info.get('length', 50)
+                coltype_obj = String(length)
+            elif col_type == 'Text':
+                coltype_obj = Text
+            elif col_type == 'Integer':
+                coltype_obj = Integer
+            elif col_type == 'SmallInteger':
+                coltype_obj = SmallInteger
+            elif col_type == 'BigInteger':
+                coltype_obj = BigInteger
+            elif col_type == 'Float':
+                coltype_obj = Float
+            elif col_type == 'Numeric':
+                precision = col_info.get('precision', 10)
+                scale = col_info.get('scale', 2)
+                coltype_obj = Numeric(precision, scale)
+            elif col_type == 'Boolean':
+                coltype_obj = Boolean
+            elif col_type == 'DateTime':
+                coltype_obj = DateTime
+            elif col_type == 'Date':
+                coltype_obj = Date
+            elif col_type == 'Time':
+                coltype_obj = Time
+            elif col_type == 'JSON':
+                coltype_obj = JSON
+            else:
+                raise ValueError(f'Unknown type: {col_type}')
+            is_pk = col_name in private_keys
+            columns.append(Column(col_name, coltype_obj, primary_key=is_pk))
+        Table(table_name, self.metadata, *columns)
+        # 创建所有表
+        self.metadata.create_all(self.engine)
+        # 确保连接被正确关闭
+        self.engine.dispose()
 
 
     def update_table_if_needed(self, table_name: str, df: pd.DataFrame) -> None:
@@ -242,7 +235,6 @@ class DatabaseWriter:
             
             # 如果delete=True，先删除指定valuation_date的数据
             if delete:
-                print(df)
                 valuation_list = df['valuation_date'].unique().tolist()
                 with self.engine.connect() as conn:
                     # 根据delet_name和delet_key是否为空决定SQL
@@ -356,7 +348,7 @@ class SqlSaving:
         self.chunk_size = config_reader.get_task_param(task_name, "chunk_size")
         self.workers = config_reader.get_task_param(task_name, "workers")
         self.private_keys = config_reader.get_task_param(task_name, "private_keys")
-
+        self.schema=config_reader.get_task_param(task_name,'schema')
         # 初始化其他组件
         self.writer = DatabaseWriter(self.db_url)
         self.table_manager = TableManager(self.writer.engine)
@@ -369,6 +361,7 @@ class SqlSaving:
         :param file_path: 文件路径
         :param extra_columns: 额外的列信息
         """
+        df=self.df_standardize(df)
         try:
             # 检查点：创建或更新表结构
             print("步骤: 创建或更新表结构")
@@ -384,7 +377,45 @@ class SqlSaving:
 
     def _create_or_update_table(self, df: pd.DataFrame) -> None:
         """创建或更新表结构"""
+        df=self.df_standardize(df)
         if not self.table_manager.table_exists(self.table_name):
-            self.table_manager.create_data_table(self.table_name, df, self.private_keys)
+            self.table_manager.create_data_table(self.table_name, df,self.schema,self.private_keys)
         else:
             self.table_manager.update_table_if_needed(self.table_name, df)
+
+    def df_standardize(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        根据配置文件schema将df的每一列转换为指定类型
+        :param df: 原始DataFrame
+        :return: 类型标准化后的DataFrame
+        """
+        import numpy as np
+        schema = self.schema
+        df = df.copy()
+        try:
+            if 'valuation_date' in df.columns:
+                df['valuation_date']=pd.to_datetime(df['valuation_date'].astype(str))
+                df['valuation_date']=df['valuation_date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+        except:
+            pass
+        for col, col_info in schema.items():
+            if col not in df.columns:
+                continue
+            col_type = col_info.get('type')
+            try:
+                if col_type == 'String':
+                    df[col] = df[col].astype(str)
+                elif col_type == 'Float':
+                    df[col] = pd.to_numeric(df[col].astype(str).str.replace(',', ''), errors='coerce').astype(float)
+                elif col_type == 'Integer':
+                    df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
+                elif col_type == 'Boolean':
+                    df[col] = df[col].astype(bool)
+                elif col_type == 'DateTime':
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
+                elif col_type == 'Date':
+                    df[col] = pd.to_datetime(df[col], errors='coerce').dt.date
+                # 可扩展更多类型
+            except Exception as e:
+                print(f"列 {col} 类型转换为 {col_type} 失败: {e}")
+        return df

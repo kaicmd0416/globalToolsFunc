@@ -1,0 +1,14 @@
+VIX:
+    table_name: "data_vix"
+    db_url: "mysql+pymysql://root:root@localhost:3306/data_prepared_sq?autocommit=True "
+    chunk_size: 20000
+    workers: 4
+    private_keys:
+      - "valuation_date"
+      - 'vix_type'
+      - 'organization'
+    schema:
+      valuation_date: { type: String, length: 50 }
+      vix_type: { type: String, length: 50 }
+      organization: { type: String, length: 50 }
+      ch_vix: { type: Float }

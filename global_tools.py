@@ -1725,3 +1725,4 @@ def table_manager(config_path, table_name):
 
 
 
+
