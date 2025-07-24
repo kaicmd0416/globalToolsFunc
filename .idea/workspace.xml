@@ -4,7 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="85b7af28-8efa-45db-b365-fbfb6ece69af" name="Changes" comment="" />
+    <list default="true" id="85b7af28-8efa-45db-b365-fbfb6ece69af" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/global_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/global_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/portfolio_calculation.py" beforeDir="false" afterPath="$PROJECT_DIR$/portfolio_calculation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sql_saving.py" beforeDir="false" afterPath="$PROJECT_DIR$/sql_saving.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -174,5 +179,26 @@
       <updated>1747708209109</updated>
     </task>
     <servers />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/sql_saving.py</url>
+          <line>377</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/portfolio_calculation.py</url>
+          <line>77</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/portfolio_calculation.py</url>
+          <line>83</line>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

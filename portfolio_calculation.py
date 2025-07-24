@@ -19,7 +19,7 @@ class portfolio_calculation:
         - pre_close: Previous day's closing price
     """
     def __init__(self,df_initial_holding=pd.DataFrame(),df_holding=pd.DataFrame(),df_stock=pd.DataFrame(),df_etf=pd.DataFrame(),df_option=pd.DataFrame(),
-                 df_future=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),df_adj_factor=pd.DataFrame(),account_money=None,cost_stock=None,cost_etf=None,cost_future=None,cost_option=None,cost_cb=None):
+                 df_future=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),df_adj_factor=pd.DataFrame(),account_money=None,cost_stock=None,cost_etf=None,cost_future=None,cost_option=None,cost_cb=None,realtime=False):
         self.df_initial_holding=df_initial_holding
         if self.df_initial_holding.empty:
             self.df_initial_holding=pd.DataFrame(columns=['code','quantity'])
@@ -31,12 +31,13 @@ class portfolio_calculation:
         self.df_convertible_bond=df_convertible_bond
         self.df_adjfactor=df_adj_factor
         self.account_money=account_money
-        self.check_input_format()
+        self.check_input_format(realtime)
         self.cost_stock=cost_stock
         self.cost_etf=cost_etf
         self.cost_future=cost_future
         self.cost_option=cost_option
         self.cost_cb=cost_cb
+        self.realtime=realtime
     def df_processing(self,df):
         df=df.replace('None',np.nan)
         df.dropna(inplace=True)
@@ -46,7 +47,7 @@ class portfolio_calculation:
             except:
                 df[col]=df[col]
         return df
-    def check_input_format(self):
+    def check_input_format(self,realtime):
         """
         Check if all input DataFrames follow the required format.
         Returns a list of DataFrames that don't meet the format requirements.
@@ -73,13 +74,20 @@ class portfolio_calculation:
         if not all(col in self.df_adjfactor.columns for col in adj_required_columns):
             invalid_inputs.append('adjfactor')
         # Special check for futures data
-        futures_required_columns = ['code', 'close', 'pre_close', 'multiplier']
+        if realtime==True:
+             futures_required_columns = ['code', 'close', 'pre_settle', 'multiplier']
+        else:
+             futures_required_columns = ['code', 'settle', 'pre_settle', 'multiplier']
         if not all(col in self.df_future.columns for col in futures_required_columns):
             invalid_inputs.append('future')
-        oc_required_columns = ['code', 'close', 'pre_close', 'delta','delta_yes']
+        if realtime==True:
+             oc_required_columns = ['code', 'close', 'pre_settle', 'delta','delta_yes']
+        else:
+            oc_required_columns = ['code', 'settle', 'pre_settle', 'delta', 'delta_yes']
+        cvb_required_columns= ['code', 'close', 'pre_close', 'delta','delta_yes']
         if not all(col in self.df_option.columns for col in oc_required_columns):
             invalid_inputs.append('option')
-        if not all(col in self.df_convertible_bond.columns for col in oc_required_columns):
+        if not all(col in self.df_convertible_bond.columns for col in cvb_required_columns):
             invalid_inputs.append('option')
         if invalid_inputs:
             print(f"以下输入文件格式不符合要求: {', '.join(invalid_inputs)}")
@@ -113,6 +121,10 @@ class portfolio_calculation:
         # Initialize list to store non-empty processed DataFrames
         processed_dfs = []
         required_column=['code','close','pre_close']
+        if self.realtime==True:
+             required_column2=['code','close','pre_settle']
+        else:
+            required_column2 = ['code', 'settle', 'pre_settle']
         # Process convertible bond if not empty
         if not self.df_convertible_bond.empty:
             df_convertible_bond=self.df_convertible_bond.copy()
@@ -122,8 +134,8 @@ class portfolio_calculation:
             df_convertible_bond['adjfactor_yes'] = 1
             df_convertible_bond['multiplier']=10
             df_convertible_bond=self.df_processing(df_convertible_bond)
-            df_convertible_bond['mkt_value']=df_convertible_bond['multiplier']*df_convertible_bond['close']
-            df_convertible_bond['mkt_value_yes']=df_convertible_bond['multiplier']*df_convertible_bond['pre_close']
+            df_convertible_bond['mkt_value']=df_convertible_bond['multiplier']*df_convertible_bond['close']*df_convertible_bond['delta']
+            df_convertible_bond['mkt_value_yes']=df_convertible_bond['multiplier']*df_convertible_bond['pre_close']*df_convertible_bond['delta_yes']
             processed_dfs.append(df_convertible_bond)
         # Process ETF if not empty
         if not self.df_etf.empty:
@@ -140,7 +152,10 @@ class portfolio_calculation:
         # Process future if not empty
         if not self.df_future.empty:
             df_future=self.df_future.copy()
-            df_future=df_future[required_column+['multiplier']]
+            df_future=df_future[required_column2+['multiplier']]
+            df_future.rename(columns={'pre_settle':'pre_close'},inplace=True)
+            if self.realtime==False:
+                df_future.rename(columns={'settle':'close'},inplace=True)
             df_future['class']='future'
             df_future['delta']=1
             df_future['delta_yes'] = 1
@@ -155,7 +170,10 @@ class portfolio_calculation:
         # Process option if not empty
         if not self.df_option.empty:
             df_option=self.df_option.copy()
-            df_option=df_option[required_column+['delta','delta_yes']]
+            df_option=df_option[required_column2+['delta','delta_yes']]
+            df_option.rename(columns={'pre_settle':'pre_close'},inplace=True)
+            if self.realtime==False:
+                df_option.rename(columns={'settle':'close'},inplace=True)
             df_option['class']='option'
             df_option['multiplier']=100
             df_option['adjfactor']=1
@@ -261,7 +279,7 @@ class portfolio_calculation:
         turnover_return_cost = df_final['return_cost'].sum()
         
         return turnover_ratio, turnover_return_cost, turnover_cost
-    def portfolio_calculation_main(self):
+    def portfolio_calculation_main(self,detail=False):
         df_holding=self.df_holding_processing(yes=False,turnover=False)
         df_mkt=self.mktdata_data_processing()
         df=df_holding.merge(df_mkt,on='code',how='left')
@@ -283,11 +301,15 @@ class portfolio_calculation:
         portfolio_mktvalue_yes=abs(df['mkt_value_yes']).sum()
         portfolio_return=portfolio_profit/portfolio_mktvalue_yes
         portfolio_riskvalue=df['risk_mktvalue'].sum()
+        portfolio_mktvalue=df['mkt_value'].sum()
         portfolio_dic={'portfolio_profit':[portfolio_profit],'portfolio_return':[portfolio_return],'paper_return':[paper_return],
                        'portfolio_riskvalue':[portfolio_riskvalue],'turnover_ratio':[turnover_ratio],
-                       'turnover_return_cost':[turnover_return_cost],'turnover_cost':[turnover_cost]}
+                       'turnover_return_cost':[turnover_return_cost],'turnover_cost':[turnover_cost],'portfolio_mktvalue':[portfolio_mktvalue]}
         df_portfolio=pd.DataFrame(portfolio_dic)
-        return df_portfolio
+        if detail==False:
+            return df_portfolio
+        else:
+            return df_portfolio,df
 
 
 

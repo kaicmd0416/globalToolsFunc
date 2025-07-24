@@ -3,7 +3,7 @@ import os
 import sys
 from typing import Dict, Any, Optional
 import pandas as pd
-from sqlalchemy import inspect,create_engine, MetaData, Table, Column, Float, String, DateTime, text
+from sqlalchemy import inspect,create_engine, MetaData, Table, Column, Float, String, DateTime, text,Integer,DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine, text
 from sqlalchemy import bindparam

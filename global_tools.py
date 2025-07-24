@@ -595,7 +595,7 @@ def data_getting_glb(path,config_path=None,sheet_name=None):
     return df
 
 
-def data_getting(path, config_path=None, sheet_name=None):
+def data_getting(path, config_path=None, sheet_name=None,update_time=True):
     """
     获取数据
 
@@ -638,7 +638,7 @@ def data_getting(path, config_path=None, sheet_name=None):
                             pass
             # 处理数据
             if not df.empty:
-                if 'update_time' in df.columns:
+                if 'update_time' in df.columns and update_time==True:
                     updatetime_list = df['update_time'].unique().tolist()
                     if len(updatetime_list) == 1:
                         df = df.drop(columns=['update_time'])
@@ -1156,6 +1156,8 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
             except:
                 index_return=None
         else:
+            if short_name=='000510.CSI':
+                short_name='000510.SH'
             inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{short_name}' "
             df=data_getting_glb(inputpath_indexreturn)
             try:
@@ -1621,17 +1623,17 @@ def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df
              if len(day_list) > 1:
                  if i == 0:
                      pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond)
+                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
                      df_portfolio = pc.portfolio_calculation_main()
                      i += 1
                  else:
                      df_initial = df_holding
                      pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond)
+                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
                      df_portfolio = pc.portfolio_calculation_main()
              else:
                  pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                            df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond)
+                                            df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
                  df_portfolio = pc.portfolio_calculation_main()
              if index_type != None:
                  index_return = crossSection_index_return_withdraw(index_type, available_date, realtime)
@@ -1645,6 +1647,71 @@ def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df
     df_final['valuation_date'] = day_list2
     df_final = df_final[['valuation_date'] + df_final.columns.tolist()[:-1]]
     return df_final
+def portfolio_analyse_manual(start_date=None,end_date=None,df_initial=pd.DataFrame(),df_holding=pd.DataFrame(),detail=False,df_stock=pd.DataFrame(),df_future=pd.DataFrame(),df_etf=pd.DataFrame(),df_option=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),df_adj_factor=pd.DataFrame(),account_money=10000000,index_type=None,cost_stock=0.00085,cost_etf=0.0003,cost_future=0.00006,cost_option=0.01,cost_convertiblebond=0.0007,realtime=False,adj_source='wind',weight_standardize=False):
+    if weight_standardize==True:
+        if not df_initial.empty:
+            df_initial=weight_df_standardization(df_initial)
+        if not df_holding.empty:
+            df_holding=weight_df_standardization(df_holding)
+    df_final=pd.DataFrame()
+    df_detail=pd.DataFrame()
+    if realtime==True:
+        today = date.today()
+        today = today.strftime('%Y-%m-%d')
+        day_list=[today]
+    else:
+        if start_date==None or end_date==None:
+            print('start_date和end_date不能为None')
+            raise ValueError
+        else:
+            day_list=working_days_list(start_date,end_date)
+    i=0
+    day_list2=[]
+    for available_date in day_list:
+        if len(day_list) > 1:
+            if i == 0:
+                pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+                                           df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
+                                           cost_future, cost_option, cost_convertiblebond,realtime)
+                if detail==False:
+                    df_portfolio = pc.portfolio_calculation_main(detail)
+                else:
+                    df_portfolio,df=pc.portfolio_calculation_main(detail)
+                i += 1
+            else:
+                df_initial = df_holding
+                pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+                                           df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
+                                           cost_future, cost_option, cost_convertiblebond,realtime)
+                if detail == False:
+                    df_portfolio = pc.portfolio_calculation_main(detail)
+                else:
+                    df_portfolio, df = pc.portfolio_calculation_main(detail)
+        else:
+            pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+                                       df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
+                                       cost_future, cost_option, cost_convertiblebond,realtime)
+            if detail == False:
+                df_portfolio = pc.portfolio_calculation_main(detail)
+            else:
+                df_portfolio, df = pc.portfolio_calculation_main(detail)
+        if index_type != None:
+            index_return = crossSection_index_return_withdraw(index_type, available_date, realtime)
+        else:
+            index_return = 0
+        df_portfolio['index_return'] = index_return
+        df_portfolio['excess_return'] = df_portfolio['portfolio_return'] - df_portfolio['index_return']
+        df_portfolio['excess_return_paper'] = df_portfolio['paper_return'] - df_portfolio['index_return']
+        df_final = pd.concat([df_final, df_portfolio])
+        if detail==True:
+            df_detail=pd.concat([df_detail,df])
+        day_list2.append(available_date)
+    df_final['valuation_date'] = day_list2
+    df_final = df_final[['valuation_date'] + df_final.columns.tolist()[:-1]]
+    if detail==False:
+         return df_final
+    else:
+        return df_final,df_detail
 #回测标准化模块:
 def backtesting_report(df_portfolio=pd.DataFrame(),outputpath=None,index_type=None,signal_name='portfolio'):
     df_indexreturn=timeSeries_index_return_withdraw()
