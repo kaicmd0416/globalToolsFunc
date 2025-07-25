@@ -32,13 +32,14 @@ global df_date, source, db_pools
 # 初始化数据库连接池字典
 db_pools = {}
 
-def get_db_connection(config_path=None, use_database2=False, max_retries=3):
+def get_db_connection(config_path=None, use_database2=False, use_database3=False, max_retries=3):
     """
     获取数据库连接，使用连接池管理
     
     Args:
         config_path (str, optional): 配置文件路径
         use_database2 (bool, optional): 是否使用第二个数据库。默认为False。
+        use_database3 (bool, optional): 是否使用第三个数据库。默认为False。
         max_retries (int, optional): 最大重试次数。默认为3。
     
     Returns:
@@ -58,7 +59,7 @@ def get_db_connection(config_path=None, use_database2=False, max_retries=3):
             config_path = os.path.join(current_dir, 'tools_path_config.json')
             
         # 生成连接池的唯一键
-        pool_key = f"{config_path}_{use_database2}"
+        pool_key = f"{config_path}_{use_database2}_{use_database3}"
         
         # 如果连接池不存在，创建新的连接池
         if pool_key not in db_pools:
@@ -66,7 +67,12 @@ def get_db_connection(config_path=None, use_database2=False, max_retries=3):
                 config = json.load(f)
                 
             # 选择数据库配置
-            db_key = 'database2' if use_database2 else 'database1'
+            if use_database3:
+                db_key = 'database3'
+            elif use_database2:
+                db_key = 'database2'
+            else:
+                db_key = 'database1'
             db_config = config['components']['database'][db_key]
             
             # 创建连接池
@@ -549,36 +555,38 @@ def data_getting_glb(path,config_path=None,sheet_name=None):
         df = data_reader(path,sheet_name=sheet_name)
     else:
         try:
-            # 首先尝试主数据库
-            conn = get_db_connection(config_path)
-            if conn is None:
-                conn = get_db_connection(config_path,use_database2=True)
-            
-            if conn is not None:
+            conn1 = get_db_connection(config_path)
+            if conn1 is not None:
                 try:
-                    df = pd.read_sql(path, con=conn)
-                    conn.close()
-                    
-                    # 如果主数据库没有数据，尝试第二个数据库
-                    if df.empty:
-                        conn2 = get_db_connection(config_path,use_database2=True)
-                        if conn2 is not None:
-                            df = pd.read_sql(path, con=conn2)
-                            conn2.close()
-                except Exception:
-                    # 如果主数据库查询失败，尝试备用数据库
-                    conn2 = get_db_connection(config_path,use_database2=True)
-                    if conn2 is not None:
-                        try:
-                            df = pd.read_sql(path, con=conn2)
-                            conn2.close()
-                        except Exception:
+                    df = pd.read_sql(path, con=conn1)
+                    conn1.close()
+                    if not df.empty:
+                        pass  # 已找到数据
+                except Exception as e:
+                    pass
+            if df.empty:
+                conn2 = get_db_connection(config_path, use_database2=True)
+                if conn2 is not None:
+                    try:
+                        df = pd.read_sql(path, con=conn2)
+                        conn2.close()
+                        if not df.empty:
                             pass
+                    except Exception as e:
+                        pass
+            if df.empty:
+                conn3 = get_db_connection(config_path, use_database3=True)
+                if conn3 is not None:
+                    try:
+                        df = pd.read_sql(path, con=conn3)
+                        conn3.close()
+                    except Exception as e:
+                        pass
             # 处理数据
             if not df.empty:
                 if 'update_time' in df.columns:
-                    updatetime_list=df['update_time'].unique().tolist()
-                    if len(updatetime_list)==1:
+                    updatetime_list = df['update_time'].unique().tolist()
+                    if len(updatetime_list) == 1:
                         df = df.drop(columns=['update_time'])
                     else:
                         df = df[df['update_time'] == df['update_time'].max()]
@@ -610,47 +618,44 @@ def data_getting(path, config_path=None, sheet_name=None,update_time=True):
     if source2 == 'local':
         df = data_reader(path, sheet_name=sheet_name)
     else:
-        try:
-            # 首先尝试主数据库
-            conn = get_db_connection(config_path)
-            if conn is None:
-                conn = get_db_connection(config_path, use_database2=True)
-
-            if conn is not None:
+        conn1 = get_db_connection(config_path)
+        if conn1 is not None:
+            try:
+                df = pd.read_sql(path, con=conn1)
+                conn1.close()
+                if not df.empty:
+                    pass  # 已找到数据
+            except Exception as e:
+                pass
+        if df.empty:
+            conn2 = get_db_connection(config_path, use_database2=True)
+            if conn2 is not None:
                 try:
-                    df = pd.read_sql(path, con=conn)
-                    conn.close()
-
-                    # 如果主数据库没有数据，尝试第二个数据库
-                    if df.empty:
-                        conn2 = get_db_connection(config_path, use_database2=True)
-                        if conn2 is not None:
-                            df = pd.read_sql(path, con=conn2)
-                            conn2.close()
-                except Exception:
-                    # 如果主数据库查询失败，尝试备用数据库
-                    conn2 = get_db_connection(config_path, use_database2=True)
-                    if conn2 is not None:
-                        try:
-                            df = pd.read_sql(path, con=conn2)
-                            conn2.close()
-                        except Exception:
-                            pass
-            # 处理数据
-            if not df.empty:
-                if 'update_time' in df.columns and update_time==True:
-                    updatetime_list = df['update_time'].unique().tolist()
-                    if len(updatetime_list) == 1:
-                        df = df.drop(columns=['update_time'])
-                    else:
-                        df = df[df['update_time'] == df['update_time'].max()]
-                        df = df.drop(columns=['update_time'])
-                for col in df.select_dtypes(include=['object']).columns:
-                    df[col] = df[col].astype(str).str.strip()
-
-        except Exception as e:
-            if df.empty:
-                print(f"数据获取失败: {str(e)}")
+                    df = pd.read_sql(path, con=conn2)
+                    conn2.close()
+                    if not df.empty:
+                        pass
+                except Exception as e:
+                    pass
+        if df.empty:
+            conn3 = get_db_connection(config_path, use_database3=True)
+            if conn3 is not None:
+                try:
+                    df = pd.read_sql(path, con=conn3)
+                    conn3.close()
+                except Exception as e:
+                    pass
+        # 处理数据
+        if not df.empty:
+            if 'update_time' in df.columns and update_time == True:
+                updatetime_list = df['update_time'].unique().tolist()
+                if len(updatetime_list) == 1:
+                    df = df.drop(columns=['update_time'])
+                else:
+                    df = df[df['update_time'] == df['update_time'].max()]
+                    df = df.drop(columns=['update_time'])
+            for col in df.select_dtypes(include=['object']).columns:
+                df[col] = df[col].astype(str).str.strip()
 
     if df.empty:
         print(f"未找到数据: {path}")
