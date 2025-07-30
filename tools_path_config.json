@@ -9,7 +9,6 @@
                 "port": 3306,
                 "user": "kai",
                 "password": "Abcd1234#",
-                "database": "data_prepared",
                 "charset": "utf8mb4"
             },
             "database2": {
@@ -17,7 +16,6 @@
                 "port": 3306,
                 "user": "root",
                 "password": "root",
-                "database": "data_prepared",
                 "charset": "utf8mb4"
             }
         }
@@ -39,115 +37,134 @@
             "data_type": "input_indexcomponent",
             "folder_name": "data_index\\index_component",
             "folder_type": "input_folder",
-            "sql_sheet": "data_indexcomponent"
+            "sql_sheet": "data_indexcomponent",
+            "database": "data_prepared"
         },
         {
             "data_type": "index_data",
             "folder_name": "data_index\\index_data",
             "folder_type": "input_folder",
-            "sql_sheet": "data_index"
+            "sql_sheet": "data_index",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_indexreturn_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "realtime_data"
+            "sql_sheet": "realtime_data",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_index_exposure",
             "folder_name": "data_index\\index_exposure",
             "folder_type": "input_folder",
-            "sql_sheet": "data_factorindexexposure"
+            "sql_sheet": "data_factorindexexposure",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_stockdata",
             "folder_name": "data_stock",
             "folder_type": "input_folder",
-            "sql_sheet": "data_stock"
+            "sql_sheet": "data_stock",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_stockclose_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "realtime_data"
+            "sql_sheet": "realtime_data",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_etfdata",
             "folder_name": "data_etf",
             "folder_type": "input_folder",
-            "sql_sheet": "data_etf"
+            "sql_sheet": "data_etf",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_etfdata_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "realtime_data"
+            "sql_sheet": "realtime_data",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_cbdata",
             "folder_name": "data_convertiblebond",
             "folder_type": "input_folder",
-            "sql_sheet": "data_convertiblebond"
+            "sql_sheet": "data_convertiblebond",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_optiondata",
             "folder_name": "data_option",
             "folder_type": "input_folder",
-            "sql_sheet": "data_option"
+            "sql_sheet": "data_option",
+            "database": "data_prepared"
         },
                 {
             "data_type": "input_optiondata_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "realtime_data"
+            "sql_sheet": "realtime_data",
+            "database": "data_prepared"
         },
         {
             "data_type": "input_futuredata",
             "folder_name": "data_future",
             "folder_type": "input_folder",
-            "sql_sheet": "data_future"
+            "sql_sheet": "data_future",
+            "database": "data_prepared"
         },
                 {
             "data_type": "input_futuredata_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "realtime_data"
+            "sql_sheet": "realtime_data",
+            "database": "data_prepared"
         },
         {
             "data_type": "valuation_date",
             "folder_name": "data_other\\chinese_valuation_date.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "chinesevaluationdate"
+            "sql_sheet": "chinesevaluationdate",
+            "database": "data_prepared"
         },
         {
             "data_type": "stock_universe_new",
             "folder_name": "data_other\\StockUniverse_new.csv",
             "folder_type": "input_folder",
-            "sql_sheet": "stockuniverse"
+            "sql_sheet": "stockuniverse",
+            "database": "data_prepared"
         },
         {
             "data_type": "stock_universe_old",
             "folder_name": "data_other\\StockUniverse_old.csv",
             "folder_type": "input_folder",
-            "sql_sheet": "stockuniverse"
+            "sql_sheet": "stockuniverse",
+            "database": "data_prepared"
         },
         {
             "data_type": "weeks_lastday",
             "folder_name": "data_other\\weeks_lastday.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "specialday"
+            "sql_sheet": "specialday",
+            "database": "data_prepared"
         },
         {
             "data_type": "weeks_firstday",
             "folder_name": "data_other\\weeks_firstday.xlsx",
             "folder_type": "input_folder",
-            "sql_sheet": "specialday"
+            "sql_sheet": "specialday",
+            "database": "data_prepared"
         },
         {
             "data_type": "timeseires_indexReturn",
             "folder_name": "data_timeSeries\\index_data\\IndexReturn.csv",
             "folder_type": "input_folder",
-            "sql_sheet": "data_index"
+            "sql_sheet": "data_index",
+            "database": "data_prepared"
         }
     ]
 } 

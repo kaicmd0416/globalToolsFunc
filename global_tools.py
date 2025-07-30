@@ -3,7 +3,6 @@ global_tools.py
 金融数据处理和投资组合计算工具包
 提供股票、期货、期权、ETF等金融数据的处理和投资组合收益计算功能
 """
-
 import pandas as pd
 import numpy as np
 import os
@@ -90,7 +89,6 @@ def get_db_connection(config_path=None, use_database2=False, use_database3=False
                 port=db_config['port'],
                 user=db_config['user'],
                 password=db_config['password'],
-                database=db_config['database'],
                 charset=db_config['charset'],
                 connect_timeout=100,  # 连接超时时间（秒）
                 read_timeout=300,     # 读取超时时间（秒）

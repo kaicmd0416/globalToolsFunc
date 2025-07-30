@@ -82,7 +82,12 @@ def get(key):
     # 获取数据源模式
     data_source = global_dic.get('components', {}).get('data_source', {})
     mode = data_source.get('mode', 'local')
-    
+    if key=='mode':
+        return mode
+    if key=='config_path':
+         current_dir = os.path.dirname(os.path.abspath(__file__))
+         config_path = os.path.join(current_dir, 'tools_path_config.json')
+         return config_path
     # 获取配置信息
     config = None
     for item in global_dic.get('sub_folder', []):
@@ -94,12 +99,16 @@ def get(key):
         return None
     
     if mode == 'sql':
-        # SQL模式：返回查询语句
-        if 'sql_sheet' not in config:
-            return None
-        table_name = config['sql_sheet']
-        return f"SELECT * FROM {table_name}"
-    else:
+        # SQL模式：返回 select * from db_name.table_name
+        if 'sql_sheet' not in config or 'database' not in config:
+            # 如果没有sql_sheet或database，降级到local模式
+            mode = 'local'
+        else:
+            table_name = config['sql_sheet']
+            db_name = config['database']
+            return (f"SELECT * FROM {db_name}.{table_name}")
+    
+    if mode == 'local':
         # 本地模式：返回文件路径
         if 'folder_name' not in config:
             return None
