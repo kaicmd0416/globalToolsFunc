@@ -22,144 +22,14 @@ from portfolio_calculation import portfolio_calculation
 from backtesting_tools import Back_testing_processing
 from sql_saving import SqlSaving, DatabaseWriter
 from sqlalchemy import text
+from mktData_sql import mktData_sql
+from mktData_local import mktData_local
 # 忽略警告信息
 warnings.filterwarnings("ignore")
-
+from utils import *
+from time_utils import *
 # 全局变量
-global df_date, source, db_pools
-
-# 初始化数据库连接池字典
-db_pools = {}
-
-def get_db_connection(config_path=None, use_database2=False, use_database3=False, max_retries=3):
-    """
-    获取数据库连接，使用连接池管理
-    
-    Args:
-        config_path (str, optional): 配置文件路径
-        use_database2 (bool, optional): 是否使用第二个数据库。默认为False。
-        use_database3 (bool, optional): 是否使用第三个数据库。默认为False。
-        max_retries (int, optional): 最大重试次数。默认为3。
-    
-    Returns:
-        pymysql.connections.Connection: 数据库连接对象
-    """
-    if config_path == None:
-        source2 = source
-    else:
-        source2 = source_getting2(config_path)
-        
-    if source2 == 'local':
-        return None
-        
-    try:
-        if config_path == None:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            config_path = os.path.join(current_dir, 'tools_path_config.json')
-            
-        # 生成连接池的唯一键
-        pool_key = f"{config_path}_{use_database2}_{use_database3}"
-        
-        # 如果连接池不存在，创建新的连接池
-        if pool_key not in db_pools:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                
-            # 选择数据库配置
-            if use_database3:
-                db_key = 'database3'
-            elif use_database2:
-                db_key = 'database2'
-            else:
-                db_key = 'database1'
-            db_config = config['components']['database'][db_key]
-            
-            # 创建连接池
-            db_pools[pool_key] = PooledDB(
-                creator=pymysql,  # 使用pymysql作为数据库连接器
-                maxconnections=6,  # 连接池最大连接数
-                mincached=2,      # 初始化时，连接池中至少创建的空闲的链接
-                maxcached=5,      # 连接池中最多闲置的链接
-                maxshared=3,      # 链接最大共享数
-                blocking=True,    # 连接池中如果没有可用连接后，是否阻塞等待
-                maxusage=None,    # 一个链接最多被重复使用的次数，None表示无限制
-                setsession=[],    # 开始会话前执行的命令列表
-                ping=1,           # ping MySQL服务端，检查是否服务可用
-                host=db_config['host'],
-                port=db_config['port'],
-                user=db_config['user'],
-                password=db_config['password'],
-                charset=db_config['charset'],
-                connect_timeout=100,  # 连接超时时间（秒）
-                read_timeout=300,     # 读取超时时间（秒）
-                write_timeout=300,    # 写入超时时间（秒）
-                autocommit=True      # 自动提交
-            )
-        
-        # 重试机制
-        for attempt in range(max_retries):
-            try:
-                # 从连接池获取连接
-                conn = db_pools[pool_key].connection()
-                # 测试连接是否有效
-                with conn.cursor() as cursor:
-                    cursor.execute("SELECT 1")
-                return conn
-            except (pymysql.err.OperationalError, pymysql.err.TimeoutError) as e:
-                if attempt == max_retries - 1:  # 最后一次尝试
-                    print(f"数据库连接失败，已重试{max_retries}次: {str(e)}")
-                    raise
-                print(f"数据库连接失败，正在重试 ({attempt + 1}/{max_retries}): {str(e)}")
-                time.sleep(1)  # 等待1秒后重试
-                
-    except Exception as e:
-        print(f"数据库连接失败: {str(e)}")
-        return None
-
-def close_all_connections():
-    """
-    关闭所有数据库连接池
-    """
-    global db_pools
-    for pool in db_pools.values():
-        try:
-            pool.close()
-        except:
-            pass
-    db_pools.clear()
-
-# 在程序退出时关闭所有连接
-import atexit
-atexit.register(close_all_connections)
-
-def source_getting():
-    """
-    获取数据源配置
-    
-    Returns:
-        str: 数据源模式（'local' 或 'sql'）
-    """
-    try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        config_path = os.path.join(current_dir,  'tools_path_config.json')
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config_data = json.load(f)
-        source = config_data['components']['data_source']['mode']
-    except Exception as e:
-        print(f"获取配置出错: {str(e)}")
-        source = 'local'
-    return source
-
-
-def source_getting2(config_path):
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config_data = json.load(f)
-        source = config_data['components']['data_source']['mode']
-    except Exception as e:
-        print(f"获取配置出错: {str(e)}")
-        source = 'local'
-    return source
+global source
 source=source_getting()
 # ============= 基础工具函数 =============
 def sql_to_timeseries(df):
@@ -171,61 +41,7 @@ def sql_to_timeseries(df):
     # 重置索引，使valuation_date成为列
     df_pivot = df_pivot.reset_index()
     return df_pivot
-def readcsv(filepath, dtype=None, index_col=None):
-    """
-    读取CSV文件，支持多种编码格式
-    
-    Args:
-        filepath (str): CSV文件路径
-        dtype (dict, optional): 指定列的数据类型
-        index_col (int, optional): 指定索引列
-    
-    Returns:
-        pandas.DataFrame: 读取的数据框
-    """
-    for en in ['gbk', 'utf-8', 'ANSI', 'utf_8_sig']:
-        try:
-            df = pd.read_csv(filepath, encoding=en, dtype=dtype, index_col=index_col)
-            for col in df.select_dtypes(include=['object']).columns:
-                df[col] = df[col].str.strip() if df[col].dtype == 'object' else df[col]
-            return df
-        except Exception as e:
-            continue
-    return pd.DataFrame()
-
-def move_specific_files(old_path, new_path, files_to_move=None):
-    """
-    移动特定文件
-    
-    Args:
-        old_path (str): 源目录
-        new_path (str): 目标目录
-        files_to_move (list, optional): 要移动的文件列表
-    """
-    if files_to_move is None:
-        filelist = os.listdir(old_path)
-    else:
-        filelist = files_to_move
-
-    for file in filelist:
-        src = os.path.join(old_path, file)
-        if not os.path.exists(src):
-            print(f"文件不存在: {src}")
-            continue
-        dst = os.path.join(new_path, file)
-        shutil.copy(src, dst)
-
-def move_specific_files2(old_path, new_path):
-    """
-    复制整个目录
-    
-    Args:
-        old_path (str): 源目录
-        new_path (str): 目标目录
-    """
-    shutil.copytree(old_path, new_path, dirs_exist_ok=True)
-
-def rr_score_processing(df_score):
+def rank_score_processing(df_score):
     """
     标准化分数生成
     
@@ -252,7 +68,6 @@ def rr_score_processing(df_score):
     df_score['valuation_date'] = pd.to_datetime(df_score['valuation_date'])
     df_score['valuation_date'] = df_score['valuation_date'].astype(str)
     return df_score
-
 def code_transfer(df):
     """
     股票代码格式转换
@@ -285,9 +100,7 @@ def code_transfer(df):
     
     df['code'] = df['code'].apply(lambda x: sz_sh(x))
     return df
-
 # ============= 因子名称相关函数 =============
-
 def factor_name_old():
     """
     获取旧版因子名称
@@ -303,7 +116,6 @@ def factor_name_old():
                     '农林牧渔', '银行', '非银行金融', '房地产', '交通运输', '电子元器件', 
                     '通信', '计算机', '传媒', '综合']
     return barra_name, industry_name
-
 def factor_name_new():
     """
     获取新版因子名称
@@ -335,102 +147,7 @@ def factor_name(inputpath_factor):
     industry_name = [i for i in annots if '\u4e00' <= i <= '\u9fff']
     barra_name = [i for i in annots if '\u4e00' > i or i > '\u9fff']
     return barra_name, industry_name
-
-# ============= 文件操作函数 =============
-
-def chunks(lst, n):
-    """
-    等分列表
-    
-    Args:
-        lst (list): 要等分的列表
-        n (int): 等分数量
-    
-    Returns:
-        list: 等分后的列表
-    """
-    return [lst[i::n] for i in range(n)]
-
-def file_withdraw(inputpath, available_date):
-    """
-    提取指定日期的文件
-    
-    Args:
-        inputpath (str): 输入路径
-        available_date (str): 日期
-    
-    Returns:
-        str: 文件路径
-    """
-    input_list = os.listdir(inputpath)
-    try:
-        file_name = [file for file in input_list if available_date in file][0]
-    except:
-        print(f'找不到日期 {available_date} 对应的文件: {inputpath}')
-        file_name = None
-    
-    if file_name is not None:
-        return os.path.join(inputpath, file_name)
-    return None
-def file_withdraw2(inputpath, available_date):
-    """
-    提取指定日期的文件
-
-    Args:
-        inputpath (str): 输入路径
-        available_date (str): 日期
-
-    Returns:
-        str: 文件路径
-    """
-    input_list = os.listdir(inputpath)
-    try:
-        file_name = [file for file in input_list if available_date in file][0]
-    except:
-        print(f'找不到日期 {available_date} 对应的文件: {inputpath}')
-        file_name = None
-    if file_name is not None:
-        inputpath= os.path.join(inputpath, file_name)
-        df=data_reader(inputpath)
-    else:
-        df=pd.DataFrame()
-    return df
-
-def folder_creator(inputpath):
-    """
-    创建文件夹
-    
-    Args:
-        inputpath (str): 文件夹路径
-    """
-    try:
-        os.mkdir(inputpath)
-    except:
-        pass
-
-def folder_creator2(path):
-    """
-    创建多级目录
-    
-    Args:
-        path (str): 目录路径
-    """
-    if not os.path.exists(path):
-        os.makedirs(path, exist_ok=True)
-
-def folder_creator3(file_path):
-    """
-    创建文件的路径
-    
-    Args:
-        file_path (str): 文件路径
-    """
-    directory = os.path.dirname(file_path)
-    if not os.path.exists(directory):
-        os.makedirs(directory, exist_ok=True)
-
 # ============= 数据处理函数 =============
-
 def weight_sum_check(df):
     """
     检查权重和
@@ -472,198 +189,6 @@ def stock_volatility_calculate(df, available_date):
     df.set_index('valuation_date', inplace=True, drop=True)
     df = df.rolling(248).std()
     return df
-
-# ============= 数据读取函数 =============
-
-def data_reader(filepath, dtype=None, index_col=None,sheet_name=None):
-        """
-        读取数据文件，支持CSV、Excel和MAT格式
-        
-        Args:
-            filepath (str): 文件路径
-            dtype (dict, optional): 数据类型
-            index_col (int, optional): 索引列
-        
-        Returns:
-            pandas.DataFrame: 读取的数据框
-        """
-        if filepath==None:
-            print(f"文件不存在: {filepath}")
-            return pd.DataFrame()
-            
-        file_extension = os.path.splitext(filepath)[1].lower()
-        
-        if file_extension == '.csv':
-            # 处理CSV文件
-            for en in ['gbk', 'utf-8', 'ANSI', 'utf_8_sig']:
-                try:
-                    df = pd.read_csv(filepath, encoding=en, dtype=dtype, index_col=index_col)
-                    for col in df.select_dtypes(include=['object']).columns:
-                        df[col] = df[col].str.strip() if df[col].dtype == 'object' else df[col]
-                    return df
-                except Exception:
-                    continue
-            return pd.DataFrame()
-            
-        elif file_extension == '.xlsx':
-            # 处理Excel文件
-            try:
-                if sheet_name!=None:
-                     df = pd.read_excel(filepath, dtype=dtype, index_col=index_col,sheet_name=sheet_name)
-                else:
-                    df = pd.read_excel(filepath, dtype=dtype, index_col=index_col)
-                for col in df.select_dtypes(include=['object']).columns:
-                    df[col] = df[col].str.strip() if df[col].dtype == 'object' else df[col]
-                return df
-            except Exception:
-                return pd.DataFrame()
-
-        elif file_extension == '.mat':
-            # 处理MAT文件
-            try:
-                mat_data = loadmat(filepath)
-                # 获取第一个非系统变量
-                data_key = None
-                for key in mat_data.keys():
-                    if not key.startswith('__'):
-                        data_key = key
-                        break
-                if data_key is None:
-                    return pd.DataFrame()
-                df = pd.DataFrame(mat_data[data_key])
-                return df
-            except Exception:
-                return pd.DataFrame()
-                
-        else:
-            return pd.DataFrame()
-
-def data_getting_glb(path,config_path=None,sheet_name=None):
-    """
-    获取数据
-    
-    Args:
-        path (str): 数据路径或SQL查询
-    
-    Returns:
-        pandas.DataFrame: 获取的数据
-    """
-    df = pd.DataFrame()
-    if source == 'local':
-        df = data_reader(path,sheet_name=sheet_name)
-    else:
-        try:
-            conn1 = get_db_connection(config_path)
-            if conn1 is not None:
-                try:
-                    df = pd.read_sql(path, con=conn1)
-                    conn1.close()
-                    if not df.empty:
-                        pass  # 已找到数据
-                except Exception as e:
-                    pass
-            if df.empty:
-                conn2 = get_db_connection(config_path, use_database2=True)
-                if conn2 is not None:
-                    try:
-                        df = pd.read_sql(path, con=conn2)
-                        conn2.close()
-                        if not df.empty:
-                            pass
-                    except Exception as e:
-                        pass
-            if df.empty:
-                conn3 = get_db_connection(config_path, use_database3=True)
-                if conn3 is not None:
-                    try:
-                        df = pd.read_sql(path, con=conn3)
-                        conn3.close()
-                    except Exception as e:
-                        pass
-            # 处理数据
-            if not df.empty:
-                if 'update_time' in df.columns:
-                    updatetime_list = df['update_time'].unique().tolist()
-                    if len(updatetime_list) == 1:
-                        df = df.drop(columns=['update_time'])
-                    else:
-                        df = df[df['update_time'] == df['update_time'].max()]
-                        df = df.drop(columns=['update_time'])
-                for col in df.select_dtypes(include=['object']).columns:
-                    df[col] = df[col].astype(str).str.strip()
-                
-        except Exception as e:
-            if df.empty:
-                print(f"数据获取失败: {str(e)}")
-            
-    if df.empty:
-        print(f"未找到数据: {path}")
-    return df
-
-
-def data_getting(path, config_path=None, sheet_name=None,update_time=True):
-    """
-    获取数据
-
-    Args:
-        path (str): 数据路径或SQL查询
-
-    Returns:
-        pandas.DataFrame: 获取的数据
-    """
-    source2=source_getting2(config_path)
-    df = pd.DataFrame()
-    if source2 == 'local':
-        df = data_reader(path, sheet_name=sheet_name)
-    else:
-        conn1 = get_db_connection(config_path)
-        if conn1 is not None:
-            try:
-                df = pd.read_sql(path, con=conn1)
-                conn1.close()
-                if not df.empty:
-                    pass  # 已找到数据
-            except Exception as e:
-                pass
-        if df.empty:
-            conn2 = get_db_connection(config_path, use_database2=True)
-            if conn2 is not None:
-                try:
-                    df = pd.read_sql(path, con=conn2)
-                    conn2.close()
-                    if not df.empty:
-                        pass
-                except Exception as e:
-                    pass
-        if df.empty:
-            conn3 = get_db_connection(config_path, use_database3=True)
-            if conn3 is not None:
-                try:
-                    df = pd.read_sql(path, con=conn3)
-                    conn3.close()
-                except Exception as e:
-                    pass
-        # 处理数据
-        if not df.empty:
-            if 'update_time' in df.columns and update_time == True:
-                updatetime_list = df['update_time'].unique().tolist()
-                if len(updatetime_list) == 1:
-                    df = df.drop(columns=['update_time'])
-                else:
-                    df = df[df['update_time'] == df['update_time'].max()]
-                    df = df.drop(columns=['update_time'])
-            for col in df.select_dtypes(include=['object']).columns:
-                df[col] = df[col].astype(str).str.strip()
-
-    if df.empty:
-        print(f"未找到数据: {path}")
-    for column in df.columns.tolist():
-        if column!='valuation_date':
-            try:
-                df[column]=df[column].astype(float)
-            except:
-                pass
-    return df
 def factor_universe_withdraw(type='new'):
     """
     获取股票池数据
@@ -684,411 +209,7 @@ def factor_universe_withdraw(type='new'):
             inputpath =str(inputpath)+ " Where type='stockuni_old'"
     df_universe = data_getting_glb(inputpath)
     return df_universe
-
-# ============= 日期处理函数 =============
-
-def Chinese_valuation_date():
-    """
-    获取中国交易日期数据
-    
-    Returns:
-        pandas.DataFrame: 交易日期数据
-    """
-    try:
-        inputpath = glv('valuation_date')
-        df_date = data_getting_glb(inputpath)
-        if df_date.empty:
-            return pd.DataFrame(columns=['valuation_date'])
-            
-        if 'valuation_date' in df_date.columns:
-            df_date['valuation_date'] = df_date['valuation_date'].str.strip()
-            return df_date
-        else:
-            return pd.DataFrame(columns=['valuation_date'])
-    except Exception as e:
-        return pd.DataFrame(columns=['valuation_date'])
-
-# 初始化全局变量
-df_date = Chinese_valuation_date()
-def next_workday():
-    """
-    获取下一个工作日
-    
-    Returns:
-        str: 下一个工作日
-    """
-    today = date.today()
-    today = today.strftime('%Y-%m-%d')
-    try:
-        if df_date.empty:
-            return today
-        index_today = df_date[df_date['valuation_date'] == today].index.tolist()[0]
-        index_tommorow = index_today + 1
-        tommorow = df_date.iloc[index_tommorow].tolist()[0]
-    except:
-        if df_date.empty:
-            return today
-        index_today = df_date[df_date['valuation_date'] >= today].index.tolist()[0]
-        tommorow = df_date.iloc[index_today].tolist()[0]
-    return tommorow
-
-def last_workday():
-    """
-    获取上一个工作日
-    
-    Returns:
-        str: 上一个工作日
-    """
-    today = date.today()
-    today = today.strftime('%Y-%m-%d')
-    try:
-        if df_date.empty:
-            return today
-        index_today = df_date[df_date['valuation_date'] == today].index.tolist()[0]
-        index_tommorow = index_today - 1
-        yesterday = df_date.iloc[index_tommorow].tolist()[0]
-    except:
-        if df_date.empty:
-            return today
-        index_today = df_date[df_date['valuation_date'] <= today].index.tolist()[-1]
-        yesterday = df_date.iloc[index_today].tolist()[0]
-    return yesterday
-
-def last_workday_calculate(x):
-    """
-    计算指定日期的上一个工作日
-    
-    Args:
-        x (str/datetime): 指定日期
-    
-    Returns:
-        str: 上一个工作日
-    """
-    today = x
-    try:
-        today = today.strftime('%Y-%m-%d')
-    except:
-        today = today
-    if df_date.empty:
-        print("警告: 未找到交易日期数据")
-        return today
-    yesterday = df_date[df_date['valuation_date'] < today]['valuation_date'].tolist()[-1]
-    return yesterday
-
-def next_workday_calculate(x):
-    """
-    计算指定日期的下一个工作日
-    
-    Args:
-        x (str/datetime): 指定日期
-    
-    Returns:
-        str: 下一个工作日
-    """
-    today = x
-    try:
-        today = today.strftime('%Y-%m-%d')
-    except:
-        today = today
-    if df_date.empty:
-        print("警告: 未找到交易日期数据")
-        return today
-    try:
-        index_today = df_date[df_date['valuation_date'] == today].index.tolist()[0]
-        index_tommorow = index_today + 1
-        tommorow = df_date.iloc[index_tommorow].tolist()[0]
-    except:
-        index_today = df_date[df_date['valuation_date'] >= today].index.tolist()[0]
-        tommorow = df_date.iloc[index_today].tolist()[0]
-    return tommorow
-
-def last_workday_calculate2(df_score):
-    """
-    批量计算上一个工作日
-    
-    Args:
-        df_score (pandas.DataFrame): 包含date列的数据框
-    
-    Returns:
-        pandas.DataFrame: 处理后的数据框
-    """
-    if df_date.empty:
-        print("警告: 未找到交易日期数据")
-        return df_score
-    df_final = pd.DataFrame()
-    date_list = df_score['date'].unique().tolist()
-    for date in date_list:
-        slice_df = df_score[df_score['date'] == date]
-        yesterday = last_workday_calculate(date)
-        slice_df['date'] = yesterday
-        df_final = pd.concat([df_final, slice_df])
-    return df_final
-
-def is_workday(today):
-    """
-    判断是否为工作日
-    
-    Args:
-        today (str): 日期
-    
-    Returns:
-        bool: 是否为工作日
-    """
-    try:
-        df_date2 = df_date[df_date['valuation_date'] == today]
-    except:
-        df_date2 = pd.DataFrame()
-    if len(df_date2) != 1:
-        return False
-    else:
-        return True
-
-def working_days(df):
-    """
-    筛选工作日数据
-    
-    Args:
-        df (pandas.DataFrame): 包含date列的数据框
-    
-    Returns:
-        pandas.DataFrame: 处理后的数据框
-    """
-    date_list = df_date['valuation_date'].tolist()
-    df = df[df['date'].isin(date_list)]
-    return df
-
-def is_workday2():
-    """
-    判断今天是否为工作日
-    
-    Returns:
-        bool: 是否为工作日
-    """
-    today = date.today()
-    today = today.strftime('%Y-%m-%d')
-    try:
-        df_date2 = df_date[df_date['valuation_date'] == today]
-    except:
-        df_date2 = pd.DataFrame()
-    if len(df_date2) != 1:
-        return False
-    else:
-        return True
-
-def intdate_transfer(date):
-    """
-    日期转整数格式
-    
-    Args:
-        date (str/datetime): 日期
-    
-    Returns:
-        str: 整数格式日期
-    """
-    date = pd.to_datetime(date)
-    date = date.strftime('%Y%m%d')
-    return date
-
-def strdate_transfer(date):
-    """
-    日期转字符串格式
-    
-    Args:
-        date (str/datetime): 日期
-    
-    Returns:
-        str: 字符串格式日期
-    """
-    date = pd.to_datetime(date)
-    date = date.strftime('%Y-%m-%d')
-    return date
-
-def working_days_list(start_date, end_date):
-    """
-    获取工作日列表
-    
-    Args:
-        start_date (str): 开始日期
-        end_date (str): 结束日期
-    
-    Returns:
-        list: 工作日列表
-    """
-    global df_date
-    df_date_copy = df_date.copy()
-    df_date_copy.rename(columns={'valuation_date': 'date'}, inplace=True)
-    df_date_copy = df_date_copy[(df_date_copy['date'] >= '2010-12-31') &
-                               (df_date_copy['date'] <= '2030-01-01')]
-    df_date_copy['target_date'] = df_date_copy['date']
-    df_date_copy.dropna(inplace=True)
-    df_date_copy = df_date_copy[(df_date_copy['date'] >= start_date) & 
-                               (df_date_copy['date'] <= end_date)]
-    date_list = df_date_copy['target_date'].tolist()
-    return date_list
-
-def working_day_count(start_date, end_date):
-    """
-    计算工作日天数
-    
-    Args:
-        start_date (str): 开始日期
-        end_date (str): 结束日期
-    
-    Returns:
-        int: 工作日天数
-    """
-    global df_date
-    slice_df_date = df_date[df_date['valuation_date'] > start_date]
-    slice_df_date = slice_df_date[slice_df_date['valuation_date'] <= end_date]
-    total_day = len(slice_df_date)
-    return total_day
-
-def month_lastday():
-    """
-    获取每月最后工作日
-    
-    Returns:
-        list: 每月最后工作日列表
-    """
-    df_date['year_month'] = df_date['valuation_date'].apply(lambda x: str(x)[:7])
-    month_lastday = df_date.groupby('year_month')['valuation_date'].tail(1).tolist()
-    return month_lastday
-
-def last_weeks_lastday():
-    """
-    获取上周最后工作日
-    
-    Returns:
-        str: 上周最后工作日
-    """
-    today = date.today()
-    today = today.strftime('%Y-%m-%d')
-    inputpath = glv('weeks_lastday')
-    df_lastday = data_getting_glb(inputpath)
-    if source=='sql':
-        df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
-    if df_lastday.empty:
-        print("警告: 未找到周最后工作日数据")
-        return today
-    lastday = df_lastday[df_lastday['valuation_date'] < today]['valuation_date'].tolist()[-1]
-    return lastday
-
-def last_weeks_lastday2(date):
-    """
-    获取指定日期的上周最后工作日
-    
-    Args:
-        date (str): 指定日期
-    
-    Returns:
-        str: 上周最后工作日
-    """
-    inputpath = glv('weeks_lastday')
-    df_lastday = data_getting_glb(inputpath)
-    if source=='sql':
-        df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
-    if df_lastday.empty:
-        print("警告: 未找到周最后工作日数据")
-        return date
-    date = pd.to_datetime(date)
-    date = date.strftime('%Y-%m-%d')
-    lastday = df_lastday[df_lastday['valuation_date'] < date]['valuation_date'].tolist()[-1]
-    return lastday
-
-def weeks_firstday(date):
-    """
-    获取周第一个工作日
-    
-    Args:
-        date (str): 日期
-    
-    Returns:
-        str: 周第一个工作日
-    """
-    inputpath = glv('weeks_firstday')
-    df_firstday = data_getting_glb(inputpath)
-    if source=='sql':
-        df_firstday=df_firstday[df_firstday['type']=='weeksFirstDay']
-    if df_firstday.empty:
-        print("警告: 未找到周第一个工作日数据")
-        return date
-    firstday = df_firstday[df_firstday['valuation_date'] < date]['valuation_date'].tolist()[-1]
-    return firstday
-
-def next_weeks_lastday2(date):
-    """
-    获取下周最后工作日
-    
-    Args:
-        date (str): 日期
-    
-    Returns:
-        str: 下周最后工作日
-    """
-    date = pd.to_datetime(date)
-    date = date.strftime('%Y-%m-%d')
-    inputpath = glv('weeks_lastday')
-    df_lastday = data_getting_glb(inputpath)
-    if source=='sql':
-        df_lastday=df_lastday[df_lastday['type']=='weeksLastDay']
-    if df_lastday.empty:
-        print("警告: 未找到周最后工作日数据")
-        return date
-    lastday = df_lastday[df_lastday['valuation_date'] > date]['valuation_date'].tolist()[0]
-    return lastday
-
-# ============= 指数数据处理函数 =============
-
-def index_mapping(index_name, type='shortname'):
-    """
-    指数名称映射
-    
-    Args:
-        index_name (str): 指数中文名称
-        type (str, optional): 返回类型
-    
-    Returns:
-        str: 指数代码或简称
-    """
-    if index_name == '上证50':
-        if type == 'shortname':
-            return 'sz50'
-        else:
-            return '000016.SH'
-    elif index_name == '沪深300':
-        if type == 'shortname':
-            return 'hs300'
-        else:
-            return '000300.SH'
-    elif index_name == '中证500':
-        if type == 'shortname':
-            return 'zz500'
-        else:
-            return '000905.SH'
-    elif index_name == '中证1000':
-        if type == 'shortname':
-            return 'zz1000'
-        else:
-            return '000852.SH'
-    elif index_name == '中证2000':
-        if type == 'shortname':
-            return 'zz2000'
-        else:
-            return '932000.CSI'
-    elif index_name == '国证2000':
-        if type == 'shortname':
-            return 'gz2000'
-        else:
-            return '399303.SZ'
-    elif index_name == '中证A500':
-        if type == 'shortname':
-            return 'zzA500'
-        else:
-            return '000510.CSI'
-    else:
-        print(f'{index_name} 不存在')
-        return None
-
+# ============= 指数数据函数 =============
 def index_weight_withdraw(index_type, available_date):
     """
     提取指数权重股数据
@@ -1100,16 +221,12 @@ def index_weight_withdraw(index_type, available_date):
     Returns:
         pandas.DataFrame: 权重股数据
     """
-    inputpath_index = glv('input_indexcomponent')
-    available_date2 = intdate_transfer(available_date)
-    short_name = index_mapping(index_type)
+    mkts=mktData_sql()
+    mktl=mktData_local()
     if source == 'local':
-        inputpath_index = os.path.join(inputpath_index, short_name)
-        inputpath_index = file_withdraw(inputpath_index, available_date2)
+        df=mktl.index_weight_withdraw_local(index_type, available_date)
     else:
-        inputpath_index = inputpath_index + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
-    
-    df = data_getting_glb(inputpath_index)
+        df=mkts.index_weight_withdraw_sql(index_type,available_date)
     if df.empty:
         print(f"未找到指数 {index_type} 在 {available_date} 的权重数据")
         return pd.DataFrame()
@@ -1119,12 +236,8 @@ def index_weight_withdraw(index_type, available_date):
     else:
         print(f"数据列不完整，期望的列: code, weight，实际的列: {df.columns.tolist()}")
         return pd.DataFrame()
-        
     return df
-
-
-
-def crossSection_index_return_withdraw(index_type, available_date,realtime=False):
+def indexData_withdraw(index_type,start_date=None,end_date=None,columns=list,realtime=False):
     """
     提取指数收益率数据
     
@@ -1135,44 +248,21 @@ def crossSection_index_return_withdraw(index_type, available_date,realtime=False
     Returns:
         float or None: 指数收益率
     """
-    short_name = index_mapping(index_type,'code')
+    # 根据是否包含中文决定short_name的赋值
+    mkts = mktData_sql()
+    mktl = mktData_local()
     if realtime==False:
-        available_date2 = intdate_transfer(available_date)
-        inputpath_indexreturn = glv('index_data')
         if source == 'local':
-            inputpath_indexreturn = file_withdraw(inputpath_indexreturn, available_date2)
+            df=mktl.indexData_withdraw_local_daily(index_type,start_date,end_date,columns)
         else:
-            inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date='{available_date}' AND code='{short_name}'"
-        df = data_getting_glb(inputpath_indexreturn)
-        try:
-            index_return=df[df['code']==short_name]['pct_chg'].tolist()[0]
-            index_return=float(index_return)
-        except:
-            index_return=None
+            df=mkts.indexData_withdraw_sql_daily(index_type,start_date,end_date,columns)
     else:
-        inputpath_indexreturn=glv('input_indexreturn_realtime')
         if source == 'local':
-            df=data_getting_glb(inputpath_indexreturn,sheet_name='indexreturn')
-            try:
-                index_return=df[short_name].tolist()[0]
-                index_return=float(index_return)
-            except:
-                index_return=None
+            df=mktl.indexData_withdraw_local_realtime(index_type,columns)
         else:
-            if short_name=='000510.CSI':
-                short_name='000510.SH'
-            inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{short_name}' "
-            df=data_getting_glb(inputpath_indexreturn)
-            try:
-                index_return=df['ret'].tolist()[0]
-                index_return=float(index_return)
-            except:
-                index_return=None
-    return index_return
-
-
-
-def crossSection_index_factorexposure_withdraw(index_type, available_date):
+            df=mkts.indexData_withdraw_sql_realtime(index_type,columns)
+    return df
+def indexFactor_withdraw(index_type,start_date=None,end_date=None):
     """
     提取指数因子暴露数据
     
@@ -1183,55 +273,12 @@ def crossSection_index_factorexposure_withdraw(index_type, available_date):
     Returns:
         pandas.DataFrame: 因子暴露数据
     """
-    available_date2 = intdate_transfer(available_date)
-    inputpath_indexexposure = glv('input_index_exposure')
-    short_name = index_mapping(index_type)
-    if source == 'local':
-        inputpath_indexexposure = os.path.join(inputpath_indexexposure, short_name)
-        inputpath_indexexposure = file_withdraw(inputpath_indexexposure, available_date2)
+    mkts = mktData_sql()
+    mktl = mktData_local()
+    if source=='local':
+        df=mktl.indexFactor_withdraw_local(index_type,start_date,end_date)
     else:
-        inputpath_indexexposure = inputpath_indexexposure + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
-    df = data_getting_glb(inputpath_indexexposure)
-    if df.empty:
-        df = pd.DataFrame()
-    else:
-        try:
-            df = df.drop(columns=['organization'])
-        except:
-            pass
-    return df
-
-def timeSeries_index_return_withdraw():
-    """
-    提取时间序列指数收益率数据
-    
-    Returns:
-        pandas.DataFrame: 时间序列指数收益率数据
-    """
-    inputpath_indexreturn = glv('timeseires_indexReturn')
-    df = data_getting_glb(inputpath_indexreturn)
-    if source=='sql':
-        df=df[['valuation_date','code','pct_chg']]
-        df=sql_to_timeseries(df)
-    df['valuation_date'] = pd.to_datetime(df['valuation_date'])
-    df['valuation_date'] = df['valuation_date'].apply(lambda x: x.strftime('%Y-%m-%d'))
-    return df
-
-
-def timeSeries_index_close_withdraw():
-    """
-    提取时间序列指数收益率数据
-
-    Returns:
-        pandas.DataFrame: 时间序列指数收益率数据
-    """
-    inputpath_indexreturn = glv('timeseires_indexReturn')
-    df = data_getting_glb(inputpath_indexreturn)
-    if source == 'sql':
-        df = df[['valuation_date', 'code', 'close']]
-        df = sql_to_timeseries(df)
-    df['valuation_date'] = pd.to_datetime(df['valuation_date'])
-    df['valuation_date'] = df['valuation_date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+        df=mkts.indexFactor_withdraw_sql(index_type,start_date,end_date)
     return df
 # ============= 证券数据处理函数 =============
 def crossSection_stockdata_local_withdraw(available_date):
@@ -1727,7 +774,11 @@ def backtesting_report(df_portfolio=pd.DataFrame(),outputpath=None,index_type=No
         if 'valuation_date' not in df_portfolio.columns.tolist():
             print('输入的portfolio必须为时序数据')
         else:
-            index_short=index_mapping(index_type,'code')
+            # 根据是否包含中文决定index_short的赋值
+            if contains_chinese(index_type):
+                index_short = index_mapping(index_type,'code')
+            else:
+                index_short = index_type
             BTP.back_testing_history(df_portfolio, outputpath, index_short, signal_name)
 #入库标准化模块
 class sqlSaving_main:
