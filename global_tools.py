@@ -463,22 +463,22 @@ def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df
         if not df_holding.empty:
             df_holding=weight_df_standardization(df_holding)
         if adj_source=='wind':
-            df_stock = stockData_withdraw(start_date,end_date,['close','pre_close','adjfactor_wind','adjfactor_wind_yes'],realtime)
+            df_stock = stockData_withdraw(start_date,end_date,['close','pre_close','adjfactor_wind','adjfactor_wind_yes','pct_chg'],realtime)
             df_stock.rename(columns={'adjfactor_wind': 'adjfactor', 'adjfactor_wind_yes': 'adjfactor_yes'},
                             inplace=True)
         else:
             df_stock = stockData_withdraw(start_date, end_date,
-                                          ['close', 'pre_close', 'adjfactor_jy', 'adjfactor_jy_yes'], realtime)
+                                          ['close', 'pre_close', 'adjfactor_jy', 'adjfactor_jy_yes','pct_chg'], realtime)
             df_stock.rename(columns={'adjfactor_jy': 'adjfactor', 'adjfactor_jy_yes': 'adjfactor_yes'},
                             inplace=True)
         if realtime==True:
-             df_future = futureData_withdraw(start_date,end_date,['close','pre_settle','multiplier'],realtime)
-             df_option = optionData_withdraw(start_date,end_date,['close','pre_settle','delta','delta_yes'], realtime)
+             df_future = futureData_withdraw(start_date,end_date,['close','pre_settle','multiplier','pct_chg'],realtime)
+             df_option = optionData_withdraw(start_date,end_date,['close','pre_settle','delta','delta_yes','pct_chg'], realtime)
         else:
-             df_future = futureData_withdraw(start_date,end_date,['settle','pre_settle','multiplier'],realtime)
-             df_option = optionData_withdraw(start_date, end_date, ['settle', 'pre_settle', 'delta', 'delta_yes'], realtime)
-        df_etf = etfData_withdraw(start_date,end_date,['close', 'pre_close'], realtime)
-        df_convertible_bond = cbData_withdraw(start_date, end_date,['close','pre_close','delta','delta_yes'], realtime)
+             df_future = futureData_withdraw(start_date,end_date,['settle','pre_settle','multiplier','pct_chg'],realtime)
+             df_option = optionData_withdraw(start_date, end_date, ['settle', 'pre_settle', 'delta', 'delta_yes','pct_chg'], realtime)
+        df_etf = etfData_withdraw(start_date,end_date,['close', 'pre_close','pct_chg'], realtime)
+        df_convertible_bond = cbData_withdraw(start_date, end_date,['close','pre_close','delta','delta_yes','pct_chg'], realtime)
         pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
                                    df_convertible_bond, account_money, cost_stock, cost_etf, cost_future,
                                    cost_option, cost_convertiblebond, realtime)
