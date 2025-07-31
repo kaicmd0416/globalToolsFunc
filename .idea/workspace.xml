@@ -5,8 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="85b7af28-8efa-45db-b365-fbfb6ece69af" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/globalToolsFunc.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/globalToolsFunc.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/global_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/global_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mktData_local.py" beforeDir="false" afterPath="$PROJECT_DIR$/mktData_local.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mktData_sql.py" beforeDir="false" afterPath="$PROJECT_DIR$/mktData_sql.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,7 +42,7 @@
     "Python.portfolio_calculation.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "main",
-    "last_opened_file_path": "D:/glv_test",
+    "last_opened_file_path": "D:/test",
     "settings.editor.selected.configurable": "preferences.lookFeel"
   }
 }]]></component>
@@ -193,11 +197,6 @@
           <url>file://$PROJECT_DIR$/sql_saving.py</url>
           <line>377</line>
           <option name="timeStamp" value="1" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/mktData_sql.py</url>
-          <line>18</line>
-          <option name="timeStamp" value="6" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

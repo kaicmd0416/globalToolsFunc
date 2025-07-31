@@ -237,7 +237,7 @@ def index_weight_withdraw(index_type, available_date):
         print(f"数据列不完整，期望的列: code, weight，实际的列: {df.columns.tolist()}")
         return pd.DataFrame()
     return df
-def indexData_withdraw(index_type,start_date=None,end_date=None,columns=list,realtime=False):
+def indexData_withdraw(index_type,start_date=None,end_date=None,columns=None,realtime=False):
     """
     提取指数收益率数据
     
@@ -281,100 +281,34 @@ def indexFactor_withdraw(index_type,start_date=None,end_date=None):
         df=mkts.indexFactor_withdraw_sql(index_type,start_date,end_date)
     return df
 # ============= 证券数据处理函数 =============
-def crossSection_stockdata_local_withdraw(available_date):
-    yes = last_workday_calculate(available_date)
-    available_date2 = intdate_transfer(available_date)
-    yes2 = intdate_transfer(yes)
-    inputpath_stockclose = glv('input_stockdata')
-    if source == 'local':
-        inputpath_stockclose1 = file_withdraw(inputpath_stockclose, available_date2)
-        inputpath_stockclose2=file_withdraw(inputpath_stockclose, yes2)
-    else:
-        inputpath_stockclose1 = inputpath_stockclose + f" WHERE valuation_date='{available_date}'"
-        inputpath_stockclose2 = inputpath_stockclose + f" WHERE valuation_date='{available_date}'"
-    df = data_getting_glb(inputpath_stockclose1)
-    df2 = data_getting_glb(inputpath_stockclose2)
-    df2=df2[['code','adjfactor_jy','adjfactor_wind']]
-    df2.columns=['code','adjfactor_jy_yes','adjfactor_wind_yes']
-    df=df.merge(df2,on='code',how='left')
-    return df
-def stockdata_withdraw(available_date,realtime=False):
+def stockData_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
+    mkts = mktData_sql()
+    mktl = mktData_local()
     if realtime == True:
-        inputpath_stockreturn = glv('input_stockclose_realtime')
         if source == 'local':
-            df = data_getting_glb(inputpath_stockreturn,'stockprice')
-            df=df[['代码','close','pre_close','return']]
+            df=mktl.stockData_withdraw_local_realtime(columns)
         else:
-            inputpath_stockreturn = inputpath_stockreturn + f" WHERE type='stock'"
-            df = data_getting_glb(inputpath_stockreturn)
-            df=df[['code','close','pre_close','ret']]
-        df.columns = ['code', 'close', 'pre_close','pct_chg']
-        df['pct_chg']=df['pct_chg']/100
+            df=mkts.stockData_withdraw_sql_realtime(columns)
     else:
-        df=crossSection_stockdata_local_withdraw(available_date)
+        if source == 'local':
+            df=mktl.stockData_withdraw_local_daily(start_date,end_date,columns)
+        else:
+            df=mkts.stockData_withdraw_sql_daily(start_date,end_date,columns)
     return df
-def stockdata_adj_withdraw(available_date,realtime,adj_source):
-    df_stock=stockdata_withdraw(available_date,realtime)
-    df_adjfactor=pd.DataFrame()
-    df_adjfactor['code'] = df_stock['code'].tolist()
-    if realtime==True:
-        df_adjfactor['adjfactor']=1
-        df_adjfactor['adjfactor_yes']=1
-    else:
-        if adj_source=='wind':
-            df_adjfactor['adjfactor']=df_stock['adjfactor_wind'].tolist()
-            df_adjfactor['adjfactor_yes'] = df_stock['adjfactor_wind_yes'].tolist()
-        else:
-            df_adjfactor['adjfactor']=df_stock['adjfactor_jy'].tolist()
-            df_adjfactor['adjfactor_yes'] = df_stock['adjfactor_jy_yes'].tolist()
-    return df_adjfactor
-def etfdata_withdraw(available_date,realtime=False):
-    """
-    提取ETF数据
-    
-    Args:
-        available_date (str): 日期
-    
-    Returns:
-        pandas.DataFrame: ETF数据
-    """
-    if realtime==False:
-        available_date2 = intdate_transfer(available_date)
-        yes=last_workday_calculate(available_date)
-        yes2=intdate_transfer(yes)
-        inputpath_etfdata = glv('input_etfdata')
+# ============= etf数据处理函数 =============
+def etfData_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
+    mkts = mktData_sql()
+    mktl = mktData_local()
+    if realtime == True:
         if source == 'local':
-            inputpath_etfdata_yes = file_withdraw(inputpath_etfdata, yes2)
-            inputpath_etfdata = file_withdraw(inputpath_etfdata, available_date2)
+            df=mktl.etfData_withdraw_local_realtime(columns)
         else:
-            inputpath_etfdata_yes = inputpath_etfdata + f" WHERE valuation_date='{yes}'"
-            inputpath_etfdata = inputpath_etfdata + f" WHERE valuation_date='{available_date}'"
-        df = data_getting_glb(inputpath_etfdata)
-        df_yes=data_getting_glb(inputpath_etfdata_yes)
-        try:
-           df['pct_chg'] = (df['close'] - df['pre_close']) / df['pre_close']
-           df_yes.rename(columns={'adjfactor':'adjfactor_yes'},inplace=True)
-           df_yes=df_yes[['code','adjfactor_yes']]
-           df=df.merge(df_yes,on='code',how='left')
-        except:
-            pass
+            df=mkts.etfData_withdraw_sql_realtime(columns)
     else:
-        inputpath_etfdata = glv('input_etfdata_realtime')
         if source == 'local':
-            df = data_getting_glb(inputpath_etfdata,'etf_info')
-            df = df[['代码', '现价', '前收']]
-            df['pct_chg']=(df['现价']-df['前收'])/df['前收']
+            df=mktl.etfData_withdraw_local_daily(start_date,end_date,columns)
         else:
-            inputpath_etfdata= inputpath_etfdata + f" WHERE type='etf'"
-            df = data_getting_glb(inputpath_etfdata)
-            df = df[['code', 'close', 'pre_close']]
-            try:
-                df['pct_chg'] = (df['close'] - df['pre_close']) / df['pre_close']
-            except:
-                pass
-        df.columns = ['code', 'close', 'pre_close', 'pct_chg']
-        df['adjfactor']=1
-        df['adjfactor_yes']=1
+            df=mkts.etfData_withdraw_sql_daily(start_date,end_date,columns)
     return df
 
 def cbdata_withdraw(available_date,realtime=False):
