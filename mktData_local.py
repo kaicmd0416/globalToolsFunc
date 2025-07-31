@@ -11,11 +11,12 @@ import re
 from dbutils.pooled_db import PooledDB
 # 导入全局配置
 from global_dic import get as glv
-from utils import index_mapping, data_getting_glb,file_withdraw2
+from utils import index_mapping, data_getting_glb,file_withdraw2,get_string_before_last_dot,optiondata_greeksprocessing
 from time_utils import intdate_transfer,working_days_list,strdate_transfer,last_workday_calculate
 # 忽略警告信息
 warnings.filterwarnings("ignore")
 class mktData_local:
+
     # ============= 指数权重数据处理函数 =============
     def index_weight_withdraw_local(self,index_type, available_date):
         inputpath_index = glv('input_indexcomponent')
@@ -116,7 +117,7 @@ class mktData_local:
             df2 = df2[['code', 'adjfactor_jy', 'adjfactor_wind']]
             df2.columns = ['code', 'adjfactor_jy_yes', 'adjfactor_wind_yes']
             df1 = df1.merge(df2, on='code', how='left')
-            df_final=pd.concat([df1,df2])
+            df_final=pd.concat([df_final,df1])
         
         # 如果columns为空list，返回所有列；否则只返回指定列
         if not columns:
@@ -167,7 +168,7 @@ class mktData_local:
             df2 = df2[['code', 'adjfactor']]
             df2.columns = ['code', 'adjfactor_yes']
             df1 = df1.merge(df2, on='code', how='left')
-            df_final = pd.concat([df1, df2])
+            df_final = pd.concat([df_final, df1])
         df_final['pct_chg'] = (df_final['close'] - df_final['pre_close']) / df_final['pre_close']
         # 如果columns为空list，返回所有列；否则只返回指定列
         if not columns:
@@ -203,3 +204,129 @@ class mktData_local:
                 print(f"输入的{columns}需要在{type_list}列里面")
                 df = pd.DataFrame()
             return df
+
+    # ============= 转债数据处理函数 =============
+    def cbData_withdraw_local_daily(self, start_date=None, end_date=None, columns=list):
+        inputpath_cbdata = glv('input_cbdata')
+        day_list = working_days_list(start_date, end_date)
+        df_final = pd.DataFrame()
+        for day in day_list:
+            yes = last_workday_calculate(day)
+            day2 = intdate_transfer(day)
+            yes2 = intdate_transfer(yes)
+            df1 = file_withdraw2(inputpath_cbdata, day2)
+            df2 = file_withdraw2(inputpath_cbdata, yes2)
+            df2 = df2[['code', 'delta']]
+            df2.columns = ['code', 'delta_yes']
+            df1 = df1.merge(df2, on='code', how='left')
+            df_final = pd.concat([df_final, df1])
+        # 如果columns为空list，返回所有列；否则只返回指定列
+        if not columns:
+            return df_final
+        else:
+            try:
+                df_final = df_final[['valuation_date', 'code'] + columns]
+            except:
+                type_list = df_final.columns.tolist()
+                print(f"输入的{columns}需要在{type_list}列里面")
+                df_final = pd.DataFrame()
+            return df_final
+    # ============= 期权数据处理函数 =============
+
+    def optionData_withdraw_local_daily(self, start_date=None, end_date=None, columns=list):
+        inputpath_optiondata = glv('input_optiondata')
+        day_list = working_days_list(start_date, end_date)
+        df_final = pd.DataFrame()
+        for day in day_list:
+            yes = last_workday_calculate(day)
+            day2 = intdate_transfer(day)
+            yes2 = intdate_transfer(yes)
+            df1 = file_withdraw2(inputpath_optiondata, day2)
+            df2 = file_withdraw2(inputpath_optiondata, yes2)
+            df1=optiondata_greeksprocessing(df1)
+            df2=optiondata_greeksprocessing(df2)
+            df2 = df2[['code', 'delta']]
+            df2.columns = ['code', 'delta_yes']
+            df1 = df1.merge(df2, on='code', how='left')
+            df_final = pd.concat([df_final, df1])
+        # 如果columns为空list，返回所有列；否则只返回指定列
+        if not columns:
+            return df_final
+        else:
+            try:
+                df_final = df_final[['valuation_date', 'code'] + columns]
+            except:
+                type_list = df_final.columns.tolist()
+                print(f"输入的{columns}需要在{type_list}列里面")
+                df_final = pd.DataFrame()
+            return df_final
+    def optionData_withdraw_local_realtime(self, columns=list):
+        inputpath_optiondata = glv('input_optiondata')
+        inputpath_optiondata_realtime=glv('input_optiondata_realtime')
+        date = datetime.today()
+        date = strdate_transfer(date)
+        yes = last_workday_calculate(date)
+        yes2 = intdate_transfer(yes)
+        df1 = data_getting_glb(inputpath_optiondata_realtime, 'option_info')
+        df1.rename(
+            columns={'代码': 'code', '简称': 'chi_name', '现价': 'close', '前收盘价': 'pre_close', '日期': 'valuation_date',
+                     '时间': 'update_time','Delta':'delta','前结算价':'pre_settle','中价隐含波动率':'implied_vol'}, inplace=True)
+        df2 = file_withdraw2(inputpath_optiondata, yes2)
+        df2 = optiondata_greeksprocessing(df2)
+        df2 = df2[['code', 'delta']]
+        df2.columns = ['code', 'delta_yes']
+        df1['code']=df1['code'].apply(lambda x: get_string_before_last_dot(x))
+        df_final = df1.merge(df2, on='code', how='left')
+        # 如果columns为空list，返回所有列；否则只返回指定列
+        if not columns:
+            return df_final
+        else:
+            try:
+                df_final = df_final[['valuation_date', 'code'] + columns]
+            except:
+                type_list = df_final.columns.tolist()
+                print(f"输入的{columns}需要在{type_list}列里面")
+                df_final = pd.DataFrame()
+            return df_final
+# ============= 期货数据处理函数 =============
+
+    def futureData_withdraw_local_daily(self, start_date=None, end_date=None, columns=list):
+        inputpath_optiondata = glv('input_futuredata')
+        day_list = working_days_list(start_date, end_date)
+        df_final = pd.DataFrame()
+        for day in day_list:
+            day2 = intdate_transfer(day)
+            df1 = file_withdraw2(inputpath_optiondata, day2)
+            df_final = pd.concat([df_final, df1])
+        # 如果columns为空list，返回所有列；否则只返回指定列
+        if not columns:
+            return df_final
+        else:
+            try:
+                df_final = df_final[['valuation_date', 'code'] + columns]
+            except:
+                type_list = df_final.columns.tolist()
+                print(f"输入的{columns}需要在{type_list}列里面")
+                df_final = pd.DataFrame()
+            return df_final
+    def futureData_withdraw_local_realtime(self, columns=list):
+        inputpath_optiondata = glv('input_futuredata')
+        date = datetime.today()
+        date = strdate_transfer(date)
+        df1 = data_getting_glb(inputpath_optiondata, 'future_info')
+        df1.rename(
+            columns={'代码': 'code', '简称': 'chi_name', '现价': 'close','最新成交价':'trade_price', '前收盘价': 'pre_close', '日期': 'valuation_date',
+                     '时间': 'update_time','前结算价':'pre_settle'}, inplace=True)
+        df1['code']=df1['code'].apply(lambda x: get_string_before_last_dot(x))
+        df1['valuation_date']=date
+        # 如果columns为空list，返回所有列；否则只返回指定列
+        if not columns:
+            return df1
+        else:
+            try:
+                df1 = df1[['valuation_date', 'code'] + columns]
+            except:
+                type_list = df1.columns.tolist()
+                print(f"输入的{columns}需要在{type_list}列里面")
+                df_final = pd.DataFrame()
+            return df_final

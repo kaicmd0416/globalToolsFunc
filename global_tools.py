@@ -311,7 +311,7 @@ def etfData_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
             df=mkts.etfData_withdraw_sql_daily(start_date,end_date,columns)
     return df
 
-def cbdata_withdraw(available_date,realtime=False):
+def cbdata_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
     """
     提取可转债数据
     
@@ -321,79 +321,25 @@ def cbdata_withdraw(available_date,realtime=False):
     Returns:
         pandas.DataFrame: 可转债数据
     """
-
-    if realtime==False:
-        yes2 = last_workday_calculate(available_date)
-        int_yes2 = intdate_transfer(yes2)
-        available_date2 = intdate_transfer(available_date)
-    else:
+    mkts = mktData_sql()
+    mktl = mktData_local()
+    if realtime==True:
         print('暂时没有realtime的可转债数据，用日频数据替代')
         available_date = date.today()
-        available_date=strdate_transfer(available_date)
+        available_date = strdate_transfer(available_date)
         yes = last_workday_calculate(available_date)
-        available_date=yes
-        available_date2=intdate_transfer(available_date)
-        yes2 = last_workday_calculate(yes)
-        int_yes2=intdate_transfer(yes2)
-    inputpath_cbdata = glv('input_cbdata')
+        start_date=yes
+        end_date=yes
     if source == 'local':
-        inputpath_cbdata1 = file_withdraw(inputpath_cbdata, available_date2)
-        inputpath_cbdata2 = file_withdraw(inputpath_cbdata, int_yes2)
+        df = mktl.cbData_withdraw_local_daily(start_date, end_date, columns)
     else:
-        inputpath_cbdata1 = inputpath_cbdata + f" WHERE valuation_date='{available_date}'"
-        inputpath_cbdata2 = inputpath_cbdata + f" WHERE valuation_date='{yes2}'"
-    df = data_getting_glb(inputpath_cbdata1)
-    df2 = data_getting_glb(inputpath_cbdata2)
-    try:
-        df2 = df2[['code', 'delta']]
-        df2.columns = ['code', 'delta_yes']
-        df = df.merge(df2, on='code', how='left')
-    except:
-        df['delta_yes']=None
+        df = mkts.cbData_withdraw_sql_daily(start_date, end_date, columns)
     return df
 
 # ============= 期权和期货数据处理函数 =============
-def get_string_before_last_dot(s):
-    last_dot_index = s.rfind('.')
-    if last_dot_index != -1:
-        return s[:last_dot_index]
-def optiondata_greeksprocessing(df):
-    """
-    处理期权Greeks数据，将delta_wind和implied_vol_wind的缺失值用delta和impliedvol补充，
-    然后删除原始列并将wind列重命名
-    
-    Args:
-        df (pandas.DataFrame): 包含delta, delta_wind, impliedvol, implied_vol_wind列的数据框
-    
-    Returns:
-        pandas.DataFrame: 处理后的数据框
-    """
-    if df.empty:
-        return df
-        
-    # 复制数据框以避免修改原始数据
-    df = df.copy()
-    # 处理delta_wind缺失值
-    if 'delta_wind' in df.columns and 'delta' in df.columns:
-        # 处理字符串'None'和Python None值
-        mask = (df['delta_wind'] == 'None') | (df['delta_wind'].isna())
-        df.loc[mask, 'delta_wind'] = df.loc[mask, 'delta']
-        # 删除原始delta列
-        df = df.drop(columns=['delta'])
-        # 重命名delta_wind为delta
-        df = df.rename(columns={'delta_wind': 'delta'})
-    
-    # 处理implied_vol_wind缺失值
-    if 'implied_vol_wind' in df.columns and 'impliedvol' in df.columns:
-        # 处理字符串'None'和Python None值
-        mask = (df['implied_vol_wind'] == 'None') | (df['implied_vol_wind'].isna())
-        df.loc[mask, 'implied_vol_wind'] = df.loc[mask, 'impliedvol']
-        # 删除原始impliedvol列
-        df = df.drop(columns=['impliedvol'])
-        # 重命名implied_vol_wind为implied_vol
-        df = df.rename(columns={'implied_vol_wind': 'implied_vol'})
-    return df
-def optiondata_withdraw(available_date,realtime=False):
+
+
+def optiondata_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
     """
     提取期权数据
     
@@ -403,81 +349,32 @@ def optiondata_withdraw(available_date,realtime=False):
     Returns:
         pandas.DataFrame: 期权数据
     """
-    if realtime==False:
-        yes = last_workday_calculate(available_date)
-        yes2 = intdate_transfer(yes)
-        available_date2 = intdate_transfer(available_date)
-        inputpath_optiondata = glv('input_optiondata')
-        if source == 'local':
-            inputpath_optiondata1 = file_withdraw(inputpath_optiondata, available_date2)
-            inputpath_optiondata2 = file_withdraw(inputpath_optiondata, yes2)
+    mkts = mktData_sql()
+    mktl = mktData_local()
+    if realtime==True:
+        if source=='local':
+            df=mktl.optionData_withdraw_local_realtime(columns)
         else:
-            inputpath_optiondata1 = inputpath_optiondata + f" WHERE valuation_date='{available_date}'"
-            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
-        df = data_getting_glb(inputpath_optiondata1)
-        df2 = data_getting_glb(inputpath_optiondata2)
-        df = optiondata_greeksprocessing(df)
-        df2 = optiondata_greeksprocessing(df2)
+            df=mkts.optionData_withdraw_sql_realtime(columns)
     else:
-        available_date=date.today()
-        yes = last_workday_calculate(available_date)
-        yes2 = intdate_transfer(yes)
-        inputpath_optiondata = glv('input_optiondata')
-        inputpath_optiondata_realtime=glv('input_optiondata_realtime')
-        if source == 'local':
-            df = data_getting_glb(inputpath_optiondata_realtime, 'option_info')
-            inputpath_optiondata2 = file_withdraw(inputpath_optiondata, yes2)
+        if source=='local':
+            df=mktl.optionData_withdraw_local_daily(start_date,end_date,columns)
         else:
-            inputpath_optiondata_realtime = inputpath_optiondata_realtime + f" WHERE type='option'"
-            df = data_getting_glb(inputpath_optiondata_realtime)
-            inputpath_optiondata2 = inputpath_optiondata + f" WHERE valuation_date='{yes}'"
-        df2 = data_getting_glb(inputpath_optiondata2)
-        df2 = optiondata_greeksprocessing(df2)
-    
-    if realtime == True:
-        if source == 'local':
-            df = df[['代码', '现价', '前收盘价','前结算价', 'Delta','中价隐含波动率']]
-            df.columns = ['code', 'close','pre_close', 'pre_settle', 'delta','implied_vol']
-        else:
-            df = df[['code', 'close','pre_close', 'pre_settle', 'delta','implied_vol']]
-        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
-        try:
-            df2 = df2[['code', 'delta']]
-            df2.columns = ['code', 'delta_yes']
-            df_final = df.merge(df2, on='code', how='left')
-        except:
-            df_final = df
-    else:
-        df2 = df2[['code', 'delta']]
-        df2.columns = ['code', 'delta_yes']
-        df_final = df.merge(df2, on='code', how='left')
-    
-    return df_final
-def futuredata_withdraw(available_date,realtime=False):
+            df=mkts.optionData_withdraw_sql_daily(start_date,end_date,columns)
+    return df
+def futuredata_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
+    mkts = mktData_sql()
+    mktl = mktData_local()
     if realtime == False:
-        available_date2 = intdate_transfer(available_date)
-        inputpath_futuredata = glv('input_futuredata')
         if source == 'local':
-            inputpath_futuredata = file_withdraw(inputpath_futuredata, available_date2)
+            df=mktl.futureData_withdraw_local_daily(start_date,end_date,columns)
         else:
-            inputpath_futuredata = inputpath_futuredata + f" WHERE valuation_date='{available_date}'"
-        df = data_getting_glb(inputpath_futuredata)
+            df=mkts.futureData_withdraw_sql_daily(start_date,end_date,columns)
     else:
-        inputpath_futuredata = glv('input_futuredata_realtime')
         if source == 'local':
-            df = data_getting_glb(inputpath_futuredata, 'future_info')
+            df = mktl.futureData_withdraw_local_realtime(columns)
         else:
-            inputpath_futuredata = inputpath_futuredata + f" WHERE type='future'"
-            df = data_getting_glb(inputpath_futuredata)
-    if realtime == True:
-        if source == 'local':
-            df = df[['代码', '现价', '前结算价', '前收盘价','合约系数']]
-        else:
-            df = df[['code', 'close', 'pre_settle','pre_close', 'multiplier']]
-        df.columns = ['code', 'close', 'pre_settle','pre_close', 'multiplier']
-        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
-    else:
-        df['code'] = df['code'].apply(lambda x: get_string_before_last_dot(x))
+            df=mkts.futureData_withdraw_sql_realtime(columns)
     return df
 def weight_df_standardization(df):
     """
