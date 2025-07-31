@@ -311,7 +311,7 @@ def etfData_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
             df=mkts.etfData_withdraw_sql_daily(start_date,end_date,columns)
     return df
 
-def cbdata_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
+def cbData_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
     """
     提取可转债数据
     
@@ -337,9 +337,7 @@ def cbdata_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
     return df
 
 # ============= 期权和期货数据处理函数 =============
-
-
-def optiondata_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
+def optionData_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
     """
     提取期权数据
     
@@ -362,7 +360,7 @@ def optiondata_withdraw(start_date=None,end_date=None,columns=None,realtime=Fals
         else:
             df=mkts.optionData_withdraw_sql_daily(start_date,end_date,columns)
     return df
-def futuredata_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
+def futureData_withdraw(start_date=None,end_date=None,columns=None,realtime=False):
     mkts = mktData_sql()
     mktl = mktData_local()
     if realtime == False:
@@ -464,135 +462,76 @@ def portfolio_analyse(start_date=None,end_date=None,df_initial=pd.DataFrame(),df
             df_initial=weight_df_standardization(df_initial)
         if not df_holding.empty:
             df_holding=weight_df_standardization(df_holding)
-    df_final=pd.DataFrame()
-    if realtime==True:
-        today = date.today()
-        today = today.strftime('%Y-%m-%d')
-        day_list=[today]
-    else:
-        if start_date==None or end_date==None:
-            print('start_date和end_date不能为None')
-            raise ValueError
+        if adj_source=='wind':
+            df_stock = stockData_withdraw(start_date,end_date,['close','pre_close','adjfactor_wind','adjfactor_wind_yes'],realtime)
+            df_stock.rename(columns={'adjfactor_wind': 'adjfactor', 'adjfactor_wind_yes': 'adjfactor_yes'},
+                            inplace=True)
         else:
-            day_list=working_days_list(start_date,end_date)
-    i=0
-    day_list2=[]
-    for available_date in day_list:
-         df_stock=stockdata_withdraw(available_date,realtime)
-         df_future=futuredata_withdraw(available_date,realtime)
-         df_etf=etfdata_withdraw(available_date,realtime)
-         df_option=optiondata_withdraw(available_date,realtime)
-         df_convertible_bond=cbdata_withdraw(available_date,realtime)
-         df_adj_factor=stockdata_adj_withdraw(available_date,realtime,adj_source)
-         if df_stock.empty:
-             print(str(available_date) + 'stock_data为空,可能会导致计算结果不准')
-         if df_future.empty:
-             print(str(available_date) + 'future_data为空,可能会导致计算结果不准')
-         if df_etf.empty:
-             print(str(available_date) + 'etf_data为空,可能会导致计算结果不准')
-         if df_option.empty:
-             print(str(available_date) + 'option_data为空,可能会导致计算结果不准')
-         if df_convertible_bond.empty:
-             print(str(available_date) + 'onvertible_bond_data为空,可能会导致计算结果不准')
-         if df_adj_factor.empty:
-             print(str(available_date) + 'stock_adj_factor为空,可能会导致计算结果不准')
-         if df_adj_factor.empty:
-             print(str(available_date) + 'stock_adj_factor为空,可能会导致计算结果不准')
-         if df_stock.empty and df_future.empty and df_etf.empty and df_option.empty and df_convertible_bond.empty and df_adj_factor.empty:
-            print(str(available_date) + '全部数据为空无法计算')
-         else:
-             if len(day_list) > 1:
-                 if i == 0:
-                     pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
-                     df_portfolio = pc.portfolio_calculation_main()
-                     i += 1
-                 else:
-                     df_initial = df_holding
-                     pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                                df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
-                     df_portfolio = pc.portfolio_calculation_main()
-             else:
-                 pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                            df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
-                 df_portfolio = pc.portfolio_calculation_main()
-             if index_type != None:
-                 index_return = crossSection_index_return_withdraw(index_type, available_date, realtime)
-             else:
-                 index_return = 0
-             df_portfolio['index_return'] = index_return
-             df_portfolio['excess_return'] = df_portfolio['portfolio_return'] - df_portfolio['index_return']
-             df_portfolio['excess_return_paper'] = df_portfolio['paper_return'] - df_portfolio['index_return']
-             df_final = pd.concat([df_final, df_portfolio])
-             day_list2.append(available_date)
-    df_final['valuation_date'] = day_list2
-    df_final = df_final[['valuation_date'] + df_final.columns.tolist()[:-1]]
-    return df_final
+            df_stock = stockData_withdraw(start_date, end_date,
+                                          ['close', 'pre_close', 'adjfactor_jy', 'adjfactor_jy_yes'], realtime)
+            df_stock.rename(columns={'adjfactor_jy': 'adjfactor', 'adjfactor_jy_yes': 'adjfactor_yes'},
+                            inplace=True)
+        if realtime==True:
+             df_future = futureData_withdraw(start_date,end_date,['close','pre_settle','multiplier'],realtime)
+             df_option = optionData_withdraw(start_date,end_date,['close','pre_settle','delta','delta_yes'], realtime)
+        else:
+             df_future = futureData_withdraw(start_date,end_date,['settle','pre_settle','multiplier'],realtime)
+             df_option = optionData_withdraw(start_date, end_date, ['settle', 'pre_settle', 'delta', 'delta_yes'], realtime)
+        df_etf = etfData_withdraw(start_date,end_date,['close', 'pre_close'], realtime)
+        df_convertible_bond = cbData_withdraw(start_date, end_date,['close','pre_close','delta','delta_yes'], realtime)
+        pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+                                   df_convertible_bond, account_money, cost_stock, cost_etf, cost_future,
+                                   cost_option, cost_convertiblebond, realtime)
+    #      else:
+    #          if len(day_list) > 1:
+    #              if i == 0:
+    #                  pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+    #                                             df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
+    #                  df_portfolio = pc.portfolio_calculation_main()
+    #                  i += 1
+    #              else:
+    #                  df_initial = df_holding
+    #                  pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+    #                                             df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
+    #                  df_portfolio = pc.portfolio_calculation_main()
+    #          else:
+    #              pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+    #                                         df_convertible_bond, df_adj_factor, account_money,cost_stock,cost_etf,cost_future,cost_option,cost_convertiblebond,realtime)
+    #              df_portfolio = pc.portfolio_calculation_main()
+    #          if index_type != None:
+    #              index_return = crossSection_index_return_withdraw(index_type, available_date, realtime)
+    #          else:
+    #              index_return = 0
+    #          df_portfolio['index_return'] = index_return
+    #          df_portfolio['excess_return'] = df_portfolio['portfolio_return'] - df_portfolio['index_return']
+    #          df_portfolio['excess_return_paper'] = df_portfolio['paper_return'] - df_portfolio['index_return']
+    #          df_final = pd.concat([df_final, df_portfolio])
+    #          day_list2.append(available_date)
+    # df_final['valuation_date'] = day_list2
+    # df_final = df_final[['valuation_date'] + df_final.columns.tolist()[:-1]]
+    # return df_final
 def portfolio_analyse_manual(start_date=None,end_date=None,df_initial=pd.DataFrame(),df_holding=pd.DataFrame(),detail=False,df_stock=pd.DataFrame(),df_future=pd.DataFrame(),df_etf=pd.DataFrame(),df_option=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),df_adj_factor=pd.DataFrame(),account_money=10000000,index_type=None,cost_stock=0.00085,cost_etf=0.0003,cost_future=0.00006,cost_option=0.01,cost_convertiblebond=0.0007,realtime=False,adj_source='wind',weight_standardize=False):
     if weight_standardize==True:
         if not df_initial.empty:
             df_initial=weight_df_standardization(df_initial)
         if not df_holding.empty:
             df_holding=weight_df_standardization(df_holding)
-    df_final=pd.DataFrame()
-    df_detail=pd.DataFrame()
-    if realtime==True:
-        today = date.today()
-        today = today.strftime('%Y-%m-%d')
-        day_list=[today]
-    else:
-        if start_date==None or end_date==None:
-            print('start_date和end_date不能为None')
-            raise ValueError
-        else:
-            day_list=working_days_list(start_date,end_date)
-    i=0
-    day_list2=[]
-    for available_date in day_list:
-        if len(day_list) > 1:
-            if i == 0:
-                pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                           df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
-                                           cost_future, cost_option, cost_convertiblebond,realtime)
-                if detail==False:
-                    df_portfolio = pc.portfolio_calculation_main(detail)
-                else:
-                    df_portfolio,df=pc.portfolio_calculation_main(detail)
-                i += 1
-            else:
-                df_initial = df_holding
-                pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                           df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
-                                           cost_future, cost_option, cost_convertiblebond,realtime)
-                if detail == False:
-                    df_portfolio = pc.portfolio_calculation_main(detail)
-                else:
-                    df_portfolio, df = pc.portfolio_calculation_main(detail)
-        else:
-            pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                                       df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
-                                       cost_future, cost_option, cost_convertiblebond,realtime)
-            if detail == False:
-                df_portfolio = pc.portfolio_calculation_main(detail)
-            else:
-                df_portfolio, df = pc.portfolio_calculation_main(detail)
-        if index_type != None:
-            index_return = crossSection_index_return_withdraw(index_type, available_date, realtime)
-        else:
-            index_return = 0
-        df_portfolio['index_return'] = index_return
-        df_portfolio['excess_return'] = df_portfolio['portfolio_return'] - df_portfolio['index_return']
-        df_portfolio['excess_return_paper'] = df_portfolio['paper_return'] - df_portfolio['index_return']
-        df_final = pd.concat([df_final, df_portfolio])
-        if detail==True:
-            df_detail=pd.concat([df_detail,df])
-        day_list2.append(available_date)
-    df_final['valuation_date'] = day_list2
-    df_final = df_final[['valuation_date'] + df_final.columns.tolist()[:-1]]
-    if detail==False:
-         return df_final
-    else:
-        return df_final,df_detail
+    pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
+                               df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
+                               cost_future, cost_option, cost_convertiblebond, realtime)
+    #     df_portfolio['index_return'] = index_return
+    #     df_portfolio['excess_return'] = df_portfolio['portfolio_return'] - df_portfolio['index_return']
+    #     df_portfolio['excess_return_paper'] = df_portfolio['paper_return'] - df_portfolio['index_return']
+    #     df_final = pd.concat([df_final, df_portfolio])
+    #     if detail==True:
+    #         df_detail=pd.concat([df_detail,df])
+    #     day_list2.append(available_date)
+    # df_final['valuation_date'] = day_list2
+    # df_final = df_final[['valuation_date'] + df_final.columns.tolist()[:-1]]
+    # if detail==False:
+    #      return df_final
+    # else:
+    #     return df_final,df_detail
 #回测标准化模块:
 def backtesting_report(df_portfolio=pd.DataFrame(),outputpath=None,index_type=None,signal_name='portfolio'):
     df_indexreturn=timeSeries_index_return_withdraw()

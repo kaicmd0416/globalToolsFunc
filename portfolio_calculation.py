@@ -19,7 +19,7 @@ class portfolio_calculation:
         - pre_close: Previous day's closing price
     """
     def __init__(self,df_initial_holding=pd.DataFrame(),df_holding=pd.DataFrame(),df_stock=pd.DataFrame(),df_etf=pd.DataFrame(),df_option=pd.DataFrame(),
-                 df_future=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),df_adj_factor=pd.DataFrame(),account_money=None,cost_stock=None,cost_etf=None,cost_future=None,cost_option=None,cost_cb=None,realtime=False):
+                 df_future=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),account_money=None,cost_stock=None,cost_etf=None,cost_future=None,cost_option=None,cost_cb=None,realtime=False):
         self.df_initial_holding=df_initial_holding
         if self.df_initial_holding.empty:
             self.df_initial_holding=pd.DataFrame(columns=['code','quantity'])
@@ -29,7 +29,6 @@ class portfolio_calculation:
         self.df_option=df_option
         self.df_future=df_future
         self.df_convertible_bond=df_convertible_bond
-        self.df_adjfactor=df_adj_factor
         self.account_money=account_money
         self.check_input_format(realtime)
         self.cost_stock=cost_stock
