@@ -179,7 +179,7 @@ class mktData_sql:
         # 确保数据按股票代码和日期排序
         df_final = df_final.sort_values(['code', 'valuation_date'])
         # 按股票代码分组，计算每个股票前一天的复权因子
-        df_final['delta_yes'] = df_final.groupby('code')['delta_yes'].shift(1)
+        df_final['delta_yes'] = df_final.groupby('code')['delta'].shift(1)
         df_final=df_final[~(df_final['valuation_date']==start_date2)]
         if not columns:
             return df_final
