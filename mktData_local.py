@@ -38,19 +38,19 @@ class mktData_local:
             date = intdate_transfer(date)
             df = file_withdraw2(inputpath_indexreturn, date)
             df_final = pd.concat([df_final, df])
-        try:
-            df_final = df_final[df_final['code'] == code]
-        except:
-            code_list=df_final['code'].unique().tolist()
-            print(f"输入的{code}需要在{code_list}列里面")
-            df_final=pd.DataFrame()
-        
+        if index_type!=None:
+            try:
+                df_final = df_final[df_final['code'] == code]
+            except:
+                code_list = df_final['code'].unique().tolist()
+                print(f"输入的{code}需要在{code_list}列里面")
+                df_final = pd.DataFrame()
         # 如果columns为空list，返回所有列；否则只返回指定列
         if not columns:
             return df_final
         else:
             try:
-                df_final = df_final[['valuation_date'] + columns]
+                df_final = df_final[['valuation_date','code'] + columns]
             except:
                 type_list=df_final.columns.tolist()
                 print(f"输入的{columns}需要在{type_list}列里面")
@@ -70,12 +70,14 @@ class mktData_local:
         inputpath_indexreturn = glv('input_indexreturn_realtime')
         df = data_getting_glb(inputpath_indexreturn, sheet_name='indexreturn')
         df['valuation_date']=date
-        try:
-            df = df[['valuation_date', code]]
-            df.columns = ['valuation_date', 'pct_chg']
-        except:
-            code_list = df.columns.tolist()
-            print(f"输入的{code}需要在{code_list}列里面")
+        df = df.T
+        df.columns = ['valuation_date', 'code', 'pct_chg']
+        if index_type!=None:
+            try:
+                df=df[df['code']==code]
+            except:
+                code_list = df.columns.tolist()
+                print(f"输入的{code}需要在{code_list}列里面")
         return df
 
     def indexFactor_withdraw_local(self,index_type=None,start_date=None,end_date=None):

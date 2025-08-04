@@ -26,14 +26,18 @@ class mktData_sql:
         # 根据是否包含中文决定short_name的赋值
         code = index_mapping(index_type, 'code')
         inputpath_indexreturn = glv('index_data')
-        inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date Between'{start_date}' AND '{end_date}' AND code='{code}'"
-        df_final = data_getting_glb(inputpath_indexreturn)
-        try:
-            df_final = df_final[df_final['code'] == code]
-        except:
-            code_list = df_final['code'].unique().tolist()
-            print(f"输入的{code}需要在{code_list}列里面")
-            df_final = pd.DataFrame()
+        if index_type!=None:
+             inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date Between'{start_date}' AND '{end_date}' AND code='{code}'"
+             df_final = data_getting_glb(inputpath_indexreturn)
+             try:
+                 df_final = df_final[df_final['code'] == code]
+             except:
+                 code_list = df_final['code'].unique().tolist()
+                 print(f"输入的{code}需要在{code_list}列里面")
+                 df_final = pd.DataFrame()
+        else:
+            inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date Between'{start_date}' AND '{end_date}'"
+            df_final = data_getting_glb(inputpath_indexreturn)
         if not columns:
             return df_final
         else:
@@ -56,7 +60,10 @@ class mktData_sql:
         if code == '000510.CSI':
             code = '000510.SH'
         inputpath_indexreturn = glv('input_indexreturn_realtime')
-        inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{code}' "
+        if index_type!=None:
+            inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{code}' "
+        else:
+            inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index'"
         df = data_getting_glb(inputpath_indexreturn)
         df['valuation_date']=date
         df = df[['valuation_date', 'ret']]
