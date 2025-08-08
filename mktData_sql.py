@@ -42,7 +42,7 @@ class mktData_sql:
             return df_final
         else:
             try:
-                df_final = df_final[['valuation_date'] + columns]
+                df_final = df_final[['valuation_date','code'] + columns]
             except:
                 type_list=df_final.columns.tolist()
                 print(f"输入的{columns}需要在{type_list}列里面")
@@ -65,9 +65,10 @@ class mktData_sql:
         else:
             inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index'"
         df = data_getting_glb(inputpath_indexreturn)
+        df.replace('000510.SH','000510.CSI',inplace=True)
         df['valuation_date']=date
-        df = df[['valuation_date', 'ret']]
-        df.columns = ['valuation_date', 'pct_chg']
+        df = df[['valuation_date', 'code','ret']]
+        df.columns = ['valuation_date', 'code','pct_chg']
         return df
     def indexFactor_withdraw_sql(self,index_type=None,start_date=None,end_date=None):
         """
@@ -93,15 +94,10 @@ class mktData_sql:
     # ============= 股票数据处理函数 =============
     def stockData_withdraw_sql_daily(self,start_date=None,end_date=None,columns=list):
         inputpath_stockclose = glv('input_stockdata')
-        start_date2=last_workday_calculate(start_date)
-        inputpath_stockclose = inputpath_stockclose + f" WHERE valuation_date Between'{start_date2}' AND '{end_date}'"
+        inputpath_stockclose = inputpath_stockclose + f" WHERE valuation_date Between'{start_date}' AND '{end_date}'"
         df_final = data_getting_glb(inputpath_stockclose)
         # 确保数据按股票代码和日期排序
         df_final = df_final.sort_values(['code', 'valuation_date'])
-        # 按股票代码分组，计算每个股票前一天的复权因子
-        df_final['adjfactor_jy_yes'] = df_final.groupby('code')['adjfactor_jy'].shift(1)
-        df_final['adjfactor_wind_yes'] = df_final.groupby('code')['adjfactor_wind'].shift(1)
-        df_final=df_final[~(df_final['valuation_date']==start_date2)]
         if not columns:
             return df_final
         else:
@@ -118,7 +114,8 @@ class mktData_sql:
         df = data_getting_glb(inputpath_stockreturn)
         df.rename(columns={'ret':'pct_chg'},inplace=True)
         df=df[['valuation_date','code','close','pre_close','pct_chg']]
-        df[['adjfactor_jy','adjfactor_wind','adjfactor_jy_yes','adjfactor_wind_yes']]=1
+        df.loc[df['close']==0,['close']]=df[df['close']==0]['pre_close'].tolist()
+        df[['adjfactor_jy','adjfactor_wind']]=1
         date=datetime.today()
         date=strdate_transfer(date)
         df['valuation_date']=date
@@ -127,8 +124,8 @@ class mktData_sql:
             return df
         else:
             try:
-                df = df[['valuation_date','code'] + columns]
                 df['pct_chg'] = df['pct_chg'] / 100
+                df = df[['valuation_date','code'] + columns]
             except:
                 type_list=df.columns.tolist()
                 print(f"输入的{columns}需要在{type_list}列里面")
@@ -137,14 +134,11 @@ class mktData_sql:
     # ============= etf数据处理函数 =============
     def etfData_withdraw_sql_daily(self,start_date=None,end_date=None,columns=list):
         inputpath_etfdata = glv('input_etfdata')
-        start_date2=last_workday_calculate(start_date)
-        inputpath_stockclose = inputpath_etfdata  + f" WHERE valuation_date Between'{start_date2}' AND '{end_date}'"
+        inputpath_stockclose = inputpath_etfdata  + f" WHERE valuation_date Between'{start_date}' AND '{end_date}'"
         df_final = data_getting_glb(inputpath_stockclose)
         # 确保数据按股票代码和日期排序
         df_final = df_final.sort_values(['code', 'valuation_date'])
         # 按股票代码分组，计算每个股票前一天的复权因子
-        df_final['adjfactor_yes'] = df_final.groupby('code')['adjfactor'].shift(1)
-        df_final=df_final[~(df_final['valuation_date']==start_date2)]
         df_final['pct_chg'] = (df_final['close'] - df_final['pre_close']) / df_final['pre_close']
         if not columns:
             return df_final

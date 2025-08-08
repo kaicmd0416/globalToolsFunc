@@ -111,16 +111,9 @@ class mktData_local:
         day_list=working_days_list(start_date,end_date)
         df_final=pd.DataFrame()
         for day in day_list:
-            yes = last_workday_calculate(day)
             day2 = intdate_transfer(day)
-            yes2 = intdate_transfer(yes)
             df1=file_withdraw2(inputpath_stockclose, day2)
-            df2 = file_withdraw2(inputpath_stockclose, yes2)
-            df2 = df2[['code', 'adjfactor_jy', 'adjfactor_wind']]
-            df2.columns = ['code', 'adjfactor_jy_yes', 'adjfactor_wind_yes']
-            df1 = df1.merge(df2, on='code', how='left')
             df_final=pd.concat([df_final,df1])
-        
         # 如果columns为空list，返回所有列；否则只返回指定列
         if not columns:
             return df_final
@@ -137,7 +130,8 @@ class mktData_local:
         inputpath_stockreturn = glv('input_stockclose_realtime')
         df = data_getting_glb(inputpath_stockreturn, 'stockprice')
         df.rename(columns={'代码':'code','简称':'chi_name','return':'pct_change','日期':'valuation_date','时间':'update_time'},inplace=True)
-        df[['adjfactor_jy','adjfactor_wind','adjfactor_jy_yes','adjfactor_wind_yes']]=1
+        df.loc[df['close'] == 0, ['close']] = df[df['close'] == 0]['pre_close'].tolist()
+        df[['adjfactor_jy','adjfactor_wind']]=1
         date=datetime.today()
         date=strdate_transfer(date)
         df['valuation_date']=date
@@ -148,8 +142,9 @@ class mktData_local:
             return df
         else:
             try:
-                df = df[['valuation_date','code'] + columns]
                 df['pct_chg'] = df['pct_chg'] / 100
+                df = df[['valuation_date','code'] + columns]
+
             except:
                 type_list=df.columns.tolist()
                 print(f"输入的{columns}需要在{type_list}列里面")
@@ -162,14 +157,8 @@ class mktData_local:
         day_list = working_days_list(start_date, end_date)
         df_final = pd.DataFrame()
         for day in day_list:
-            yes = last_workday_calculate(day)
             day2 = intdate_transfer(day)
-            yes2 = intdate_transfer(yes)
             df1 = file_withdraw2(inputpath_stockclose, day2)
-            df2 = file_withdraw2(inputpath_stockclose, yes2)
-            df2 = df2[['code', 'adjfactor']]
-            df2.columns = ['code', 'adjfactor_yes']
-            df1 = df1.merge(df2, on='code', how='left')
             df_final = pd.concat([df_final, df1])
         df_final['pct_chg'] = (df_final['close'] - df_final['pre_close']) / df_final['pre_close']
         # 如果columns为空list，返回所有列；否则只返回指定列
@@ -188,7 +177,7 @@ class mktData_local:
         df = data_getting_glb(inputpath_etfdata, 'stockprice')
         df.rename(columns={'代码': 'code', '简称': 'chi_name', '现价': 'close','前收':'pre_close', '日期': 'valuation_date',
                            '时间': 'update_time'}, inplace=True)
-        df[['adjfactor','adjfactor_yes']] = 1
+        df['adjfactor'] = 1
         date = datetime.today()
         date = strdate_transfer(date)
         df['valuation_date'] = date

@@ -257,6 +257,12 @@ def data_getting_glb(path, config_path=None, sheet_name=None,update_time=False):
             df.drop(columns='update_time',inplace=True)
         except:
             pass
+    for column in df.columns.tolist():
+        if column != 'valuation_date':
+            try:
+                df[column] = df[column].astype(float)
+            except:
+                pass
     return df
 def data_getting(path, config_path=None, sheet_name=None,update_time=False):
     """

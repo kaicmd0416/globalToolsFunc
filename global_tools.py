@@ -470,7 +470,7 @@ def weight_df_datecheck(df):
         for portfolio_name in df['portfolio_name'].unique().tolist():
             slice_df=df[df['portfolio_name']==portfolio_name]
             check(slice_df)
-def portfolio_analyse(df_holding=pd.DataFrame(),account_money=10000000,cost_stock=0.00085,cost_etf=0.0003,cost_future=0.00006,cost_option=0.01,cost_convertiblebond=0.0007,realtime=False,adj_source='wind',weight_standardize=False):
+def portfolio_analyse(df_holding=pd.DataFrame(),account_money=10000000,cost_stock=0.00085,cost_etf=0.0003,cost_future=0.00006,cost_option=0.01,cost_convertiblebond=0.0007,realtime=False,weight_standardize=True):
     weight_df_datecheck(df_holding)
     date_list=df_holding['valuation_date'].unique().tolist()
     date_list.sort()
@@ -479,17 +479,7 @@ def portfolio_analyse(df_holding=pd.DataFrame(),account_money=10000000,cost_stoc
     if weight_standardize==True:
         if not df_holding.empty:
             df_holding=weight_df_standardization(df_holding)
-    if adj_source == 'wind':
-        df_stock = stockData_withdraw(start_date, end_date,
-                                      ['close', 'pre_close', 'adjfactor_wind', 'adjfactor_wind_yes'],
-                                      realtime)
-        df_stock.rename(columns={'adjfactor_wind': 'adjfactor', 'adjfactor_wind_yes': 'adjfactor_yes'},
-                        inplace=True)
-    else:
-        df_stock = stockData_withdraw(start_date, end_date,
-                                      ['close', 'pre_close', 'adjfactor_jy', 'adjfactor_jy_yes'], realtime)
-        df_stock.rename(columns={'adjfactor_jy': 'adjfactor', 'adjfactor_jy_yes': 'adjfactor_yes'},
-                        inplace=True)
+    df_stock = stockData_withdraw(start_date, end_date, ['close', 'pre_close'], realtime)
     if realtime == True:
         df_future = futureData_withdraw(start_date, end_date, ['close', 'pre_settle', 'multiplier'],
                                         realtime)
@@ -500,7 +490,7 @@ def portfolio_analyse(df_holding=pd.DataFrame(),account_money=10000000,cost_stoc
                                         realtime)
         df_option = optionData_withdraw(start_date, end_date, ['settle', 'pre_settle', 'delta', 'delta_yes'],
                                         realtime)
-    df_etf = etfData_withdraw(start_date, end_date, ['close', 'pre_close', 'adjfactor', 'adjfactor_yes'], realtime)
+    df_etf = etfData_withdraw(start_date, end_date, ['close', 'pre_close'], realtime)
     df_convertible_bond = cbData_withdraw(start_date, end_date, ['close', 'pre_close', 'delta', 'delta_yes'],
                                           realtime)
     df_index=indexData_withdraw(None,start_date,end_date,['pct_chg'],realtime)
@@ -519,32 +509,12 @@ def portfolio_analyse(df_holding=pd.DataFrame(),account_money=10000000,cost_stoc
             df_info=pd.concat([df_info,single_info])
             df_detail=pd.concat([df_detail,single_detail])
     return df_info,df_detail
-def portfolio_analyse_manual(start_date=None,end_date=None,df_initial=pd.DataFrame(),df_holding=pd.DataFrame(),detail=False,df_stock=pd.DataFrame(),df_future=pd.DataFrame(),df_etf=pd.DataFrame(),df_option=pd.DataFrame(),df_convertible_bond=pd.DataFrame(),df_adj_factor=pd.DataFrame(),account_money=10000000,index_type=None,cost_stock=0.00085,cost_etf=0.0003,cost_future=0.00006,cost_option=0.01,cost_convertiblebond=0.0007,realtime=False,adj_source='wind',weight_standardize=False):
-    if weight_standardize==True:
-        if not df_initial.empty:
-            df_initial=weight_df_standardization(df_initial)
-        if not df_holding.empty:
-            df_holding=weight_df_standardization(df_holding)
-
-    pc = portfolio_calculation(df_initial, df_holding, df_stock, df_etf, df_option, df_future,
-                               df_convertible_bond, df_adj_factor, account_money, cost_stock, cost_etf,
-                               cost_future, cost_option, cost_convertiblebond, realtime)
-    #     df_portfolio['index_return'] = index_return
-    #     df_portfolio['excess_return'] = df_portfolio['portfolio_return'] - df_portfolio['index_return']
-    #     df_portfolio['excess_return_paper'] = df_portfolio['paper_return'] - df_portfolio['index_return']
-    #     df_final = pd.concat([df_final, df_portfolio])
-    #     if detail==True:
-    #         df_detail=pd.concat([df_detail,df])
-    #     day_list2.append(available_date)
-    # df_final['valuation_date'] = day_list2
-    # df_final = df_final[['valuation_date'] + df_final.columns.tolist()[:-1]]
-    # if detail==False:
-    #      return df_final
-    # else:
-    #     return df_final,df_detail
 #回测标准化模块:
 def backtesting_report(df_portfolio=pd.DataFrame(),outputpath=None,index_type=None,signal_name='portfolio'):
-    df_indexreturn=timeSeries_index_return_withdraw()
+    df_portfolio.sort_values(by='valuation_date',inplace=True)
+    start_date=df_portfolio['valuation_date'].tolist()[0]
+    end_date=df_portfolio['valuation_date'].tolist()[-1]
+    df_indexreturn=indexData_withdraw(index_type,start_date,end_date,['pct_chg'])
     BTP=Back_testing_processing(df_indexreturn)
     if df_portfolio.empty:
         print('输入的portfolio不能为空')

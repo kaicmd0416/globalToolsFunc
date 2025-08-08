@@ -255,7 +255,6 @@ class DatabaseWriter:
                         print(f"Failed to delete from table {table_name_lower}: {str(e)}")
                         conn.rollback()
                         raise
-            
             # 写入新数据
             df.to_sql(
                 name=table_name_lower,
