@@ -723,7 +723,7 @@ class sqlSaving_main:
         else:
             self.SS.process_file(df, delete_name, delet_key)
 
-def table_manager(config_path, table_name):
+def table_manager(config_path, database_name,table_name):
     """
     删除指定的数据库表
     
@@ -747,7 +747,7 @@ def table_manager(config_path, table_name):
         cursor = conn.cursor()
         
         # 执行DROP TABLE语句
-        drop_query = f"DROP TABLE IF EXISTS {table_name};"
+        drop_query = f"DROP TABLE IF EXISTS {database_name}.{table_name};"
         cursor.execute(drop_query)
         
         # 提交更改
