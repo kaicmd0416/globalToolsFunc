@@ -103,7 +103,7 @@
             "sql_sheet": "data_option",
             "database": "data_prepared"
         },
-                {
+        {
             "data_type": "input_optiondata_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",
@@ -117,7 +117,7 @@
             "sql_sheet": "data_future",
             "database": "data_prepared"
         },
-                {
+        {
             "data_type": "input_futuredata_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",

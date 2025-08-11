@@ -39,6 +39,12 @@ global_dic = {}
 def init():
     """
     初始化全局字典，从配置文件加载设置
+    
+    读取tools_path_config.json配置文件，解析其中的路径配置信息，
+    并更新全局字典供其他函数使用
+    
+    Returns:
+        bool: 初始化是否成功
     """
     global global_dic
     
@@ -66,11 +72,14 @@ def get(key):
     """
     获取全局变量值，支持本地文件系统和SQL数据库两种模式
     
+    根据配置的数据源模式，返回对应的文件路径或SQL查询语句。
+    支持动态切换本地文件和数据库模式。
+    
     Args:
-        key (str): 要获取的键名
+        key (str): 要获取的键名，对应配置文件中的data_type
     
     Returns:
-        any: 对应的值，可能是文件路径或SQL查询语句
+        any: 对应的值，可能是文件路径或SQL查询语句，失败时返回None
     """
     global global_dic
     
@@ -82,9 +91,9 @@ def get(key):
     # 获取数据源模式
     data_source = global_dic.get('components', {}).get('data_source', {})
     mode = data_source.get('mode', 'local')
-    if key=='mode':
+    if key == 'mode':
         return mode
-    if key=='config_path':
+    if key == 'config_path':
          current_dir = os.path.dirname(os.path.abspath(__file__))
          config_path = os.path.join(current_dir, 'tools_path_config.json')
          return config_path
@@ -147,6 +156,8 @@ def get(key):
 def set(key, value):
     """
     设置全局变量值
+    
+    手动设置全局字典中的键值对，用于动态配置
     
     Args:
         key (str): 要设置的键名

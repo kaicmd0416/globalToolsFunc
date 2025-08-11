@@ -10,16 +10,18 @@ import sys
 from datetime import time, datetime, timedelta, date
 # 导入全局配置
 from global_dic import get as glv
-from utils import data_getting_glb,source_getting
-global df_date,source
+from utils import data_getting_glb, source_getting
+global df_date, source
 
 
 def Chinese_valuation_date():
     """
     获取中国交易日期数据
-
+    
+    从配置的数据源获取中国股市交易日期列表
+    
     Returns:
-        pandas.DataFrame: 交易日期数据
+        pandas.DataFrame: 包含valuation_date列的交易日期数据框
     """
     try:
         inputpath = glv('valuation_date')
@@ -38,14 +40,16 @@ def Chinese_valuation_date():
 
 # 初始化全局变量
 df_date = Chinese_valuation_date()
-source=source_getting()
+source = source_getting()
 
 def next_workday_auto():
     """
     获取下一个工作日
-
+    
+    自动获取当前日期的下一个交易日
+    
     Returns:
-        str: 下一个工作日
+        str: 下一个工作日的日期字符串
     """
     today = date.today()
     today = today.strftime('%Y-%m-%d')
@@ -66,9 +70,11 @@ def next_workday_auto():
 def last_workday_auto():
     """
     获取上一个工作日
-
+    
+    自动获取当前日期的上一个交易日
+    
     Returns:
-        str: 上一个工作日
+        str: 上一个工作日的日期字符串
     """
     today = date.today()
     today = today.strftime('%Y-%m-%d')
@@ -89,12 +95,14 @@ def last_workday_auto():
 def last_workday_calculate(x):
     """
     计算指定日期的上一个工作日
-
+    
+    根据给定的日期计算其上一个交易日
+    
     Args:
         x (str/datetime): 指定日期
 
     Returns:
-        str: 上一个工作日
+        str: 上一个工作日的日期字符串
     """
     today = x
     try:
@@ -111,12 +119,14 @@ def last_workday_calculate(x):
 def next_workday_calculate(x):
     """
     计算指定日期的下一个工作日
-
+    
+    根据给定的日期计算其下一个交易日
+    
     Args:
         x (str/datetime): 指定日期
 
     Returns:
-        str: 下一个工作日
+        str: 下一个工作日的日期字符串
     """
     today = x
     try:
@@ -139,12 +149,14 @@ def next_workday_calculate(x):
 def last_workday_calculate2(df_score):
     """
     批量计算上一个工作日
-
+    
+    对DataFrame中的每个日期计算其上一个交易日
+    
     Args:
         df_score (pandas.DataFrame): 包含date列的数据框
 
     Returns:
-        pandas.DataFrame: 处理后的数据框
+        pandas.DataFrame: 处理后的数据框，date列更新为上一个工作日
     """
     if df_date.empty:
         print("警告: 未找到交易日期数据")
@@ -162,9 +174,11 @@ def last_workday_calculate2(df_score):
 def is_workday(today):
     """
     判断是否为工作日
-
+    
+    检查指定日期是否为交易日
+    
     Args:
-        today (str): 日期
+        today (str): 日期字符串
 
     Returns:
         bool: 是否为工作日
@@ -182,12 +196,14 @@ def is_workday(today):
 def working_days(df):
     """
     筛选工作日数据
-
+    
+    从DataFrame中筛选出只在交易日的数据
+    
     Args:
         df (pandas.DataFrame): 包含date列的数据框
 
     Returns:
-        pandas.DataFrame: 处理后的数据框
+        pandas.DataFrame: 只包含交易日数据的DataFrame
     """
     date_list = df_date['valuation_date'].tolist()
     df = df[df['date'].isin(date_list)]
@@ -197,7 +213,9 @@ def working_days(df):
 def is_workday_auto():
     """
     判断今天是否为工作日
-
+    
+    自动检查当前日期是否为交易日
+    
     Returns:
         bool: 是否为工作日
     """
@@ -216,12 +234,14 @@ def is_workday_auto():
 def intdate_transfer(date):
     """
     日期转整数格式
-
+    
+    将日期转换为YYYYMMDD格式的整数字符串
+    
     Args:
         date (str/datetime): 日期
 
     Returns:
-        str: 整数格式日期
+        str: 整数格式日期字符串（YYYYMMDD）
     """
     date = pd.to_datetime(date)
     date = date.strftime('%Y%m%d')
@@ -231,12 +251,14 @@ def intdate_transfer(date):
 def strdate_transfer(date):
     """
     日期转字符串格式
-
+    
+    将日期转换为YYYY-MM-DD格式的字符串
+    
     Args:
         date (str/datetime): 日期
 
     Returns:
-        str: 字符串格式日期
+        str: 字符串格式日期（YYYY-MM-DD）
     """
     date = pd.to_datetime(date)
     date = date.strftime('%Y-%m-%d')
@@ -246,13 +268,15 @@ def strdate_transfer(date):
 def working_days_list(start_date, end_date):
     """
     获取工作日列表
-
+    
+    获取指定日期范围内的所有交易日列表
+    
     Args:
         start_date (str): 开始日期
         end_date (str): 结束日期
 
     Returns:
-        list: 工作日列表
+        list: 工作日日期列表
     """
     global df_date
     df_date_copy = df_date.copy()
@@ -270,7 +294,9 @@ def working_days_list(start_date, end_date):
 def working_day_count(start_date, end_date):
     """
     计算工作日天数
-
+    
+    计算指定日期范围内的交易日数量
+    
     Args:
         start_date (str): 开始日期
         end_date (str): 结束日期
@@ -288,7 +314,9 @@ def working_day_count(start_date, end_date):
 def month_lastday_df():
     """
     获取每月最后工作日
-
+    
+    获取每个月的最后一个交易日
+    
     Returns:
         list: 每月最后工作日列表
     """
@@ -300,7 +328,9 @@ def month_lastday_df():
 def last_weeks_lastday_df():
     """
     获取上周最后工作日
-
+    
+    获取上周的最后一个交易日
+    
     Returns:
         str: 上周最后工作日
     """
@@ -320,7 +350,9 @@ def last_weeks_lastday_df():
 def last_weeks_lastday(date):
     """
     获取指定日期的上周最后工作日
-
+    
+    根据指定日期获取其上周的最后一个交易日
+    
     Args:
         date (str): 指定日期
 
@@ -343,7 +375,9 @@ def last_weeks_lastday(date):
 def weeks_firstday(date):
     """
     获取周第一个工作日
-
+    
+    根据指定日期获取其所在周的第一个交易日
+    
     Args:
         date (str): 日期
 
@@ -364,7 +398,9 @@ def weeks_firstday(date):
 def next_weeks_lastday(date):
     """
     获取下周最后工作日
-
+    
+    根据指定日期获取其下周的最后一个交易日
+    
     Args:
         date (str): 日期
 

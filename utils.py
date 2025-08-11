@@ -13,11 +13,14 @@ from scipy.io import loadmat
 global source, db_pools
 # 初始化数据库连接池字典
 db_pools = {}
+
 # ============= 获取数据源模式 =============
 def source_getting():
     """
     获取数据源配置
-
+    
+    从配置文件中读取数据源模式，支持本地文件模式和SQL数据库模式
+    
     Returns:
         str: 数据源模式（'local' 或 'sql'）
     """
@@ -31,7 +34,17 @@ def source_getting():
         print(f"获取配置出错: {str(e)}")
         source = 'local'
     return source
+
 def source_getting2(config_path):
+    """
+    从指定配置文件路径获取数据源配置
+    
+    Args:
+        config_path (str): 配置文件路径
+        
+    Returns:
+        str: 数据源模式（'local' 或 'sql'）
+    """
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             config_data = json.load(f)
@@ -40,20 +53,24 @@ def source_getting2(config_path):
         print(f"获取配置出错: {str(e)}")
         source = 'local'
     return source
+
 source=source_getting()
+
 # ============= 连接数据库 =============
 def get_db_connection(config_path=None, use_database2=False, use_database3=False, max_retries=3):
     """
     获取数据库连接，使用连接池管理
-
+    
+    支持多个数据库配置，具有重试机制和连接池优化
+    
     Args:
-        config_path (str, optional): 配置文件路径
-        use_database2 (bool, optional): 是否使用第二个数据库。默认为False。
-        use_database3 (bool, optional): 是否使用第三个数据库。默认为False。
-        max_retries (int, optional): 最大重试次数。默认为3。
+        config_path (str, optional): 配置文件路径，默认为None
+        use_database2 (bool, optional): 是否使用第二个数据库，默认为False
+        use_database3 (bool, optional): 是否使用第三个数据库，默认为False
+        max_retries (int, optional): 最大重试次数，默认为3
 
     Returns:
-        pymysql.connections.Connection: 数据库连接对象
+        pymysql.connections.Connection: 数据库连接对象，失败时返回None
     """
     if config_path == None:
         source2 = source
@@ -126,9 +143,12 @@ def get_db_connection(config_path=None, use_database2=False, use_database3=False
     except Exception as e:
         print(f"数据库连接失败: {str(e)}")
         return None
+
 def close_all_connections():
     """
     关闭所有数据库连接池
+    
+    清理所有已创建的数据库连接池，释放资源
     """
     global db_pools
     for pool in db_pools.values():
@@ -137,21 +157,26 @@ def close_all_connections():
         except:
             pass
     db_pools.clear()
+
 # 在程序退出时关闭所有连接
 import atexit
 atexit.register(close_all_connections)
+
 # ============= 数据读取=============
 def data_reader(filepath, dtype=None, index_col=None, sheet_name=None):
     """
     读取数据文件，支持CSV、Excel和MAT格式
-
+    
+    自动处理不同编码格式，支持多种文件类型的数据读取
+    
     Args:
         filepath (str): 文件路径
-        dtype (dict, optional): 数据类型
-        index_col (int, optional): 索引列
+        dtype (dict, optional): 数据类型字典
+        index_col (int, optional): 索引列位置
+        sheet_name (str, optional): Excel工作表名称
 
     Returns:
-        pandas.DataFrame: 读取的数据框
+        pandas.DataFrame: 读取的数据框，失败时返回空DataFrame
     """
     if filepath == None:
         print(f"文件不存在: {filepath}")
@@ -160,7 +185,7 @@ def data_reader(filepath, dtype=None, index_col=None, sheet_name=None):
     file_extension = os.path.splitext(filepath)[1].lower()
 
     if file_extension == '.csv':
-        # 处理CSV文件
+        # 处理CSV文件，尝试多种编码格式
         for en in ['gbk', 'utf-8', 'ANSI', 'utf_8_sig']:
             try:
                 df = pd.read_csv(filepath, encoding=en, dtype=dtype, index_col=index_col)
@@ -185,7 +210,7 @@ def data_reader(filepath, dtype=None, index_col=None, sheet_name=None):
             return pd.DataFrame()
 
     elif file_extension == '.mat':
-        # 处理MAT文件
+        # 处理MAT文件（MATLAB格式）
         try:
             mat_data = loadmat(filepath)
             # 获取第一个非系统变量
@@ -205,15 +230,20 @@ def data_reader(filepath, dtype=None, index_col=None, sheet_name=None):
         return pd.DataFrame()
 
 
-def data_getting_glb(path, config_path=None, sheet_name=None,update_time=False):
+def data_getting_glb(path, config_path=None, sheet_name=None, update_time=False):
     """
-    获取数据
-
+    全局数据获取函数
+    
+    根据配置的数据源模式从本地文件或数据库获取数据
+    
     Args:
-        path (str): 数据路径或SQL查询
+        path (str): 数据路径或SQL查询语句
+        config_path (str, optional): 配置文件路径
+        sheet_name (str, optional): Excel工作表名称
+        update_time (bool, optional): 是否保留update_time列，默认为False
 
     Returns:
-        pandas.DataFrame: 获取的数据
+        pandas.DataFrame: 获取的数据框
     """
     df = pd.DataFrame()
     if source == 'local':
@@ -252,9 +282,9 @@ def data_getting_glb(path, config_path=None, sheet_name=None,update_time=False):
                 print(f"数据获取失败: {str(e)}")
     if df.empty:
         print(f"未找到数据: {path}")
-    if update_time==False:
+    if update_time == False:
         try:
-            df.drop(columns='update_time',inplace=True)
+            df.drop(columns='update_time', inplace=True)
         except:
             pass
     for column in df.columns.tolist():
@@ -264,15 +294,21 @@ def data_getting_glb(path, config_path=None, sheet_name=None,update_time=False):
             except:
                 pass
     return df
-def data_getting(path, config_path=None, sheet_name=None,update_time=False):
-    """
-    获取数据
 
+def data_getting(path, config_path=None, sheet_name=None, update_time=False):
+    """
+    数据获取函数
+    
+    根据指定配置文件的数据源模式获取数据
+    
     Args:
-        path (str): 数据路径或SQL查询
+        path (str): 数据路径或SQL查询语句
+        config_path (str, optional): 配置文件路径
+        sheet_name (str, optional): Excel工作表名称
+        update_time (bool, optional): 是否保留update_time列，默认为False
 
     Returns:
-        pandas.DataFrame: 获取的数据
+        pandas.DataFrame: 获取的数据框
     """
     source2 = source_getting2(config_path)
     df = pd.DataFrame()
@@ -314,17 +350,18 @@ def data_getting(path, config_path=None, sheet_name=None,update_time=False):
                 df[column] = df[column].astype(float)
             except:
                 pass
-    if update_time==False:
+    if update_time == False:
         try:
-            df.drop(columns='update_time',inplace=True)
+            df.drop(columns='update_time', inplace=True)
         except:
             pass
     return df
+
 # =============指数通用函数=============
 def contains_chinese(text):
     """
     检测文本是否包含中文字符
-
+    
     Args:
         text (str): 要检测的文本
 
@@ -337,10 +374,13 @@ def contains_chinese(text):
         if '\u4e00' <= char <= '\u9fff':
             return True
     return False
+
 def index_mapping(index_name, type='code'):
     """
     指数名称映射 - 支持双向映射
-
+    
+    支持中文名称到代码的映射，以及代码到简称的映射
+    
     Args:
         index_name (str): 指数中文名称或代码
         type (str, optional): 返回类型，仅在中文名称输入时有效
@@ -417,14 +457,16 @@ def index_mapping(index_name, type='code'):
 def readcsv(filepath, dtype=None, index_col=None):
     """
     读取CSV文件，支持多种编码格式
-
+    
+    自动尝试多种编码格式读取CSV文件，并清理字符串数据
+    
     Args:
         filepath (str): CSV文件路径
         dtype (dict, optional): 指定列的数据类型
         index_col (int, optional): 指定索引列
 
     Returns:
-        pandas.DataFrame: 读取的数据框
+        pandas.DataFrame: 读取的数据框，失败时返回空DataFrame
     """
     for en in ['gbk', 'utf-8', 'ANSI', 'utf_8_sig']:
         try:
@@ -435,10 +477,13 @@ def readcsv(filepath, dtype=None, index_col=None):
         except Exception as e:
             continue
     return pd.DataFrame()
+
 def chunks(lst, n):
     """
     等分列表
-
+    
+    将列表等分为n个子列表
+    
     Args:
         lst (list): 要等分的列表
         n (int): 等分数量
@@ -452,13 +497,15 @@ def chunks(lst, n):
 def file_withdraw(inputpath, available_date):
     """
     提取指定日期的文件
-
+    
+    从指定目录中查找包含特定日期的文件
+    
     Args:
         inputpath (str): 输入路径
         available_date (str): 日期
 
     Returns:
-        str: 文件路径
+        str: 文件路径，未找到时返回None
     """
     input_list = os.listdir(inputpath)
     try:
@@ -474,14 +521,16 @@ def file_withdraw(inputpath, available_date):
 
 def file_withdraw2(inputpath, available_date):
     """
-    提取指定日期的文件
-
+    提取指定日期的文件并读取数据
+    
+    从指定目录中查找包含特定日期的文件并直接读取为DataFrame
+    
     Args:
         inputpath (str): 输入路径
         available_date (str): 日期
 
     Returns:
-        str: 文件路径
+        pandas.DataFrame: 读取的数据框
     """
     input_list = os.listdir(inputpath)
     try:
@@ -500,7 +549,9 @@ def file_withdraw2(inputpath, available_date):
 def folder_creator(inputpath):
     """
     创建文件夹
-
+    
+    创建单个文件夹，如果已存在则忽略错误
+    
     Args:
         inputpath (str): 文件夹路径
     """
@@ -513,7 +564,9 @@ def folder_creator(inputpath):
 def folder_creator2(path):
     """
     创建多级目录
-
+    
+    创建多级目录结构，支持递归创建
+    
     Args:
         path (str): 目录路径
     """
@@ -524,7 +577,9 @@ def folder_creator2(path):
 def folder_creator3(file_path):
     """
     创建文件的路径
-
+    
+    为指定文件创建必要的目录结构
+    
     Args:
         file_path (str): 文件路径
     """
@@ -536,11 +591,13 @@ def folder_creator3(file_path):
 def move_specific_files(old_path, new_path, files_to_move=None):
     """
     移动特定文件
-
+    
+    将指定文件从源目录复制到目标目录
+    
     Args:
         old_path (str): 源目录
         new_path (str): 目标目录
-        files_to_move (list, optional): 要移动的文件列表
+        files_to_move (list, optional): 要移动的文件列表，默认为None（移动所有文件）
     """
     if files_to_move is None:
         filelist = os.listdir(old_path)
@@ -558,28 +615,43 @@ def move_specific_files(old_path, new_path, files_to_move=None):
 def move_specific_files2(old_path, new_path):
     """
     复制整个目录
-
+    
+    将整个目录结构复制到新位置
+    
     Args:
         old_path (str): 源目录
         new_path (str): 目标目录
     """
     shutil.copytree(old_path, new_path, dirs_exist_ok=True)
+
 # ============= 期权期货数据处理函数 =============
 def get_string_before_last_dot(s):
+    """
+    获取字符串中最后一个点号之前的部分
+    
+    Args:
+        s (str): 输入字符串
+        
+    Returns:
+        str: 最后一个点号之前的部分
+    """
     last_dot_index = s.rfind('.')
     if last_dot_index != -1:
         return s[:last_dot_index]
+
 def optiondata_greeksprocessing(df):
     """
-            处理期权Greeks数据，将delta_wind和implied_vol_wind的缺失值用delta和impliedvol补充，
-            然后删除原始列并将wind列重命名
+    处理期权Greeks数据
+    
+    将delta_wind和implied_vol_wind的缺失值用delta和impliedvol补充，
+    然后删除原始列并将wind列重命名
+    
+    Args:
+        df (pandas.DataFrame): 包含delta, delta_wind, impliedvol, implied_vol_wind列的数据框
 
-            Args:
-                df (pandas.DataFrame): 包含delta, delta_wind, impliedvol, implied_vol_wind列的数据框
-
-            Returns:
-                pandas.DataFrame: 处理后的数据框
-            """
+    Returns:
+        pandas.DataFrame: 处理后的数据框
+    """
     if df.empty:
         return df
 

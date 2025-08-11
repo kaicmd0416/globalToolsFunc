@@ -9,11 +9,40 @@ mpl.rcParams['font.sans-serif'] = ['Microsoft YaHei']
 mpl.rcParams['axes.unicode_minus'] = False
 warnings.filterwarnings("ignore")
 import global_tools as gt
+
 class Back_testing_processing:
-    def __init__(self,df_index_return):
-        self.df_index_return=df_index_return
-    def cal_fund_performance2(self, df1, year):  # 计算一些技术指标 输入端为 portfolio_return 和 index_return
-        df=df1.copy()
+    """
+    回测处理类
+    
+    提供投资组合回测分析功能，包括绩效计算、图表生成和报告输出
+    
+    Attributes:
+        df_index_return (pandas.DataFrame): 基准指数收益率数据
+    """
+    
+    def __init__(self, df_index_return):
+        """
+        初始化回测处理对象
+        
+        Args:
+            df_index_return (pandas.DataFrame): 基准指数收益率数据，包含valuation_date和pct_chg列
+        """
+        self.df_index_return = df_index_return
+    
+    def cal_fund_performance2(self, df1, year):
+        """
+        计算基金绩效指标
+        
+        计算年化收益率、夏普比率、信息比率、最大回撤等关键绩效指标
+        
+        Args:
+            df1 (pandas.DataFrame): 包含return和index_return列的投资组合数据
+            year (str): 计算年份标识
+            
+        Returns:
+            pandas.DataFrame: 包含各项绩效指标的DataFrame
+        """
+        df = df1.copy()
         df.reset_index(inplace=True, drop=True)
         df['ex_return'] = df['return'] - df['index_return']
         annual_returns2 = (((1 + df['ex_return']).cumprod()).tolist()[-1] - 1) * 252 / len(df)
@@ -35,11 +64,20 @@ class Back_testing_processing:
             info_ratio = round((((1 + positive_returns['ex_return']).cumprod().tolist()[-1] - 1) * 252 / len(df)) / vol, 2)
         except:
             print('在时间区间内，positive_returns没有足够长度')
-            info_ratio=None
+            info_ratio = None
         # IR = round(info_ratio,2)
         df['nav_max'] = (1 + df['ex_return']).cumprod().expanding().max()
 
         def get_max_drawdown_slow(array):
+            """
+            计算最大回撤
+            
+            Args:
+                array (list): 净值序列
+                
+            Returns:
+                float: 最大回撤值
+            """
             drawdowns = []
             for i in range(len(array)):
                 max_array = max(array[:i + 1])
@@ -58,7 +96,18 @@ class Back_testing_processing:
         result_df6.reset_index(inplace=True)
         result_df6.rename(columns={'index': 'year'}, inplace=True)
         return result_df6
-    def draw_gapth(self,df, outputpath, title):  # 画折线图
+    
+    def draw_gapth(self, df, outputpath, title):
+        """
+        绘制折线图
+        
+        生成净值曲线图并保存为PNG文件
+        
+        Args:
+            df (pandas.DataFrame): 要绘制的数据
+            outputpath (str): 输出路径
+            title (str): 图表标题
+        """
         df.plot()
         plt.title(title)
         plt.ylabel('净值')
@@ -66,18 +115,31 @@ class Back_testing_processing:
         file_path = os.path.join(outputpath, "{}图.png".format(title))
         plt.savefig(file_path)
         plt.close()
-    def portfolio_return_processing(self,index_type,df_portfolio):
-        if index_type!=None:
+    
+    def portfolio_return_processing(self, index_type, df_portfolio):
+        """
+        处理投资组合收益率数据
+        
+        将投资组合数据与基准指数数据进行合并，计算超额收益和净值
+        
+        Args:
+            index_type (str): 基准指数类型
+            df_portfolio (pandas.DataFrame): 投资组合数据
+            
+        Returns:
+            tuple: (df_h, df_h2) - 收益率数据和净值数据
+        """
+        if index_type != None:
             df_index = self.df_index_return[['valuation_date', 'pct_chg']]
             df_index.rename(columns={'pct_chg': 'index'}, inplace=True)
         else:
-            df_index=self.df_index_return.copy()
-            df_index['index']=0
-            df_index=df_index[['valuation_date','index']]
+            df_index = self.df_index_return.copy()
+            df_index['index'] = 0
+            df_index = df_index[['valuation_date', 'index']]
         df_index['valuation_date'] = pd.to_datetime(df_index['valuation_date'])
         df_portfolio['valuation_date'] = pd.to_datetime(df_portfolio['valuation_date'])
-        df_portfolio.rename(columns={df_portfolio.columns.tolist()[1]:'portfolio'},inplace=True)
-        df_backtesting=df_portfolio.merge(df_index,on='valuation_date',how='left')
+        df_portfolio.rename(columns={df_portfolio.columns.tolist()[1]: 'portfolio'}, inplace=True)
+        df_backtesting = df_portfolio.merge(df_index, on='valuation_date', how='left')
         df_backtesting.fillna(0, inplace=True)
         df_backtesting['ex_return'] = df_backtesting['portfolio'] - df_backtesting['index']
         df_backtesting['组合净值'] = (1 + df_backtesting['portfolio']).cumprod()
@@ -87,9 +149,22 @@ class Back_testing_processing:
         df_h2 = df_backtesting[['valuation_date', '组合净值', '超额净值', '基准净值']]
         df_h2.fillna(method='ffill', inplace=True)
         return df_h, df_h2
-    def PDF_Creator(self,outputpath, df2, df4,signal_name,index_type):  # df2收益率 df3为权重矩阵 df4为净值
+    
+    def PDF_Creator(self, outputpath, df2, df4, signal_name, index_type):
+        """
+        创建PDF回测报告
+        
+        生成包含绩效指标、净值图表等内容的PDF回测分析报告
+        
+        Args:
+            outputpath (str): 输出路径
+            df2 (pandas.DataFrame): 收益率数据
+            df4 (pandas.DataFrame): 净值数据
+            signal_name (str): 策略名称
+            index_type (str): 基准指数类型
+        """
         pdf_filename = os.path.join(outputpath,
-                                        '{}回测分析报告.pdf'.format(str(signal_name)))
+                                    '{}回测分析报告.pdf'.format(str(signal_name)))
         pdf = PDFCreator(pdf_filename)
         pdf.title('<b>{}策略分析</b>'.format(signal_name))
         pdf.text('标的:{}'.format(str(index_type)))
@@ -119,12 +194,24 @@ class Back_testing_processing:
         pdf.image(fig_filename)
         pdf.build()
         return
-    def back_testing_history(self,df_portfolio, outputpath2, index_type,signal_name):  # 计算analyse_type为history的回测function
-            gt.folder_creator(outputpath2)
-            outputpath_huice1 = os.path.join(outputpath2, str(signal_name) + 'return.xlsx')
-            outputpath_huice = os.path.join(outputpath2, str(signal_name)+'回测.xlsx')
-            df_h, df_h2 = self.portfolio_return_processing(index_type,df_portfolio)
-            df_h.to_excel( outputpath_huice1,index=False)
-            df_h2.to_excel(outputpath_huice, index=False)  # 储存文件需要自己定义
-            df_h.rename(columns={'portfolio': 'return', 'index': 'index_return'}, inplace=True)
-            self.PDF_Creator(outputpath=outputpath2, df2=df_h,df4=df_h2, signal_name=signal_name, index_type=index_type)
+    
+    def back_testing_history(self, df_portfolio, outputpath2, index_type, signal_name):
+        """
+        执行历史回测分析
+        
+        完整的回测分析流程，包括数据处理、绩效计算、图表生成和报告输出
+        
+        Args:
+            df_portfolio (pandas.DataFrame): 投资组合数据
+            outputpath2 (str): 输出路径
+            index_type (str): 基准指数类型
+            signal_name (str): 策略名称
+        """
+        gt.folder_creator(outputpath2)
+        outputpath_huice1 = os.path.join(outputpath2, str(signal_name) + 'return.xlsx')
+        outputpath_huice = os.path.join(outputpath2, str(signal_name) + '回测.xlsx')
+        df_h, df_h2 = self.portfolio_return_processing(index_type, df_portfolio)
+        df_h.to_excel(outputpath_huice1, index=False)
+        df_h2.to_excel(outputpath_huice, index=False)  # 储存文件需要自己定义
+        df_h.rename(columns={'portfolio': 'return', 'index': 'index_return'}, inplace=True)
+        self.PDF_Creator(outputpath=outputpath2, df2=df_h, df4=df_h2, signal_name=signal_name, index_type=index_type)
