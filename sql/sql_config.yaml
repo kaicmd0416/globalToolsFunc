@@ -1,0 +1,16 @@
+task1: #任务名称
+    table_name: "table name" #表名
+    db_url: "mysql+pymysql://username:password@ip:port/database_name?autocommit=True "
+#    username 用户名
+#    password 密码
+#    ip 数据库ip地址
+#    port 端口号
+#    database_name 数据库的库名
+    chunk_size: 20000 #用于控制数据批量处理大小
+    workers: 4 #控制并行处理的工作线程数量
+    private_keys: #主键
+      - "column_name" #列名
+
+    schema: #创建表的列变量
+      列名: { type: 数据类型, length: 字符长度 } #例如：valuation_date: { type: String, length: 50 }
+

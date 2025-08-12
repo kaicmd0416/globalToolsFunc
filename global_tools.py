@@ -723,16 +723,17 @@ class sqlSaving_main:
         else:
             self.SS.process_file(df, delete_name, delet_key)
 
-def table_manager(config_path, database_name,table_name):
+
+def table_manager(config_path, database_name, table_name):
     """
     删除指定的数据库表
-    
+
     删除数据库中指定的表
-    
+
     Args:
         config_path (str): 配置文件路径
         table_name (str): 要删除的表名
-    
+
     Returns:
         bool: 操作是否成功
     """
@@ -742,30 +743,40 @@ def table_manager(config_path, database_name,table_name):
         if conn is None:
             print("无法连接到数据库")
             return False
-            
+
         # 创建游标
         cursor = conn.cursor()
-        
+
         # 执行DROP TABLE语句
         drop_query = f"DROP TABLE IF EXISTS {database_name}.{table_name};"
         cursor.execute(drop_query)
-        
+
         # 提交更改
         conn.commit()
-        
+
         # 关闭游标和连接
         cursor.close()
         conn.close()
-        
+
         print(f"成功删除表: {table_name}")
         return True
-        
+
     except Exception as e:
         print(f"删除表时发生错误: {str(e)}")
         return False
 
+# ============= 飞书机器人模块 =============
+from feishu_bot.feishu_sender import FeishuSender
+def FeishuBot (webhook_url):
+    return FeishuSender(webhook_url)
+# ============= 日志模块 =============
+from log.logger_utils import get_logger
+from log.log_analyzer import LogAnalyzer
 
-
+def GetLogger(logger_name,log_file,log_level):
+    return get_logger(logger_name,log_file,log_level)
+def Analyzer(log_path,feishu_webhook_url):
+    return LogAnalyzer(log_path,feishu_webhook_url)
 
 
 
