@@ -764,7 +764,52 @@ def table_manager(config_path, database_name, table_name):
     except Exception as e:
         print(f"删除表时发生错误: {str(e)}")
         return False
+def table_manager2(config_path, database_name, table_name):#清空表数据，保留表结构
+    """
+    清空数据库中指定的表
 
+    Args:
+        config_path (str): 配置文件路径
+        table_name (str): 要清空的表名
+
+    Returns:
+        bool: 操作是否成功
+    """
+    try:
+        # 获取数据库连接
+        conn = get_db_connection(config_path)
+        if conn is None:
+            print("无法连接到数据库")
+            return False
+
+        # 创建游标
+        cursor = conn.cursor()
+
+        #执行数据字典，判断表是否有数据
+        cursor.execute(f"""
+            SELECT COUNT(*) 
+            FROM information_schema.tables 
+            WHERE table_schema = '{database_name}' AND table_name = %s
+        """, (table_name,))
+
+        if cursor.fetchone()[0] == 1:
+            #清空表语句
+            cursor.execute(f"TRUNCATE TABLE `{database_name}`.`{table_name}`")
+            # 提交更改
+            conn.commit()
+            print(f"{database_name}.{table_name}表已清空。")
+        else:
+            print(f"{database_name}.{table_name}表不存在，跳过清空。")
+
+        # 关闭游标和连接
+        cursor.close()
+        conn.close()
+
+        return True
+
+    except Exception as e:
+        print(f"清空表时发生错误: {str(e)}")
+        return False
 # ============= 飞书机器人模块 =============
 from feishu_bot.feishu_sender import FeishuSender
 def FeishuBot (webhook_url):

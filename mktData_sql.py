@@ -57,6 +57,7 @@ class mktData_sql:
             pandas.DataFrame: 指数日频数据
         """
         # 根据是否包含中文决定short_name的赋值
+
         code = index_mapping(index_type, 'code')
         inputpath_indexreturn = glv('index_data')
         if index_type != None:
