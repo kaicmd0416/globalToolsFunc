@@ -569,7 +569,7 @@ def weight_df_datecheck(df):
     Args:
         df (pandas.DataFrame): 包含valuation_date列的数据框
     """
-    def check(df):
+    def check(portfolio_name,df):
         date_list_df = df['valuation_date'].unique().tolist()
         date_list_df.sort()
         start_date = date_list_df[0]
@@ -577,14 +577,14 @@ def weight_df_datecheck(df):
         date_list = working_days_list(start_date, end_date)
         date_difference = list(set(date_list) - set(date_list_df))
         if len(date_difference) > 0:
-            print(f"{date_difference}没有holding")
+            print(f"{portfolio_name,date_difference}没有holding")
             raise ValueError
     if 'portfolio_name' not in df.columns.tolist():
         check(df)
     else:
         for portfolio_name in df['portfolio_name'].unique().tolist():
             slice_df = df[df['portfolio_name'] == portfolio_name]
-            check(slice_df)
+            check(portfolio_name,slice_df)
 
 def portfolio_analyse(df_holding=pd.DataFrame(), account_money=10000000, cost_stock=0.00085, cost_etf=0.0003, cost_future=0.00006, cost_option=0.01, cost_convertiblebond=0.0007, realtime=False, weight_standardize=True):
     """

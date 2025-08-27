@@ -468,8 +468,11 @@ class portfolio_calculation:
             portfolio_return = portfolio_profit / portfolio_mktvalue_yes
             portfolio_riskvalue = df_holding['risk_mkt_value'].sum()
             if index_type != None:
+                try:
                     code = index_mapping(index_type, 'code')
                     index_return = df_index[df_index['code'] == code]['pct_chg'].tolist()[0]
+                except:
+                    index_return=0
             else:
                     index_return = 0
             excess_paper_return = paper_return - index_return
