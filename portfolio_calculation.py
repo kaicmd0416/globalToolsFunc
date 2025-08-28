@@ -216,7 +216,7 @@ class portfolio_calculation:
             df_option_date['risk_mkt_value_yes'] = df_option_date['proportion_yes'] * df_option_date['mkt_value_future_yes']
 
             # Remove temporary columns
-            df_option_date = df_option_date.drop(['future_type', 'mkt_value_future', 'mkt_value_future_yes', 'multiplier_future', 'proportion', 'proportion_yes'], axis=1)
+            df_option_date = df_option_date.drop(['future_type', 'mkt_value_future', 'mkt_value_future_yes', 'multiplier_future', 'proportion_yes'], axis=1)
 
             processed_options.append(df_option_date)
 
@@ -254,6 +254,7 @@ class portfolio_calculation:
             df_convertible_bond['risk_mkt_value_yes'] = df_convertible_bond['multiplier'] * df_convertible_bond['pre_close'] * df_convertible_bond['delta_yes']
             df_convertible_bond['mkt_value'] = df_convertible_bond['multiplier'] * df_convertible_bond['close']
             df_convertible_bond['mkt_value_yes'] = df_convertible_bond['multiplier'] * df_convertible_bond['pre_close']
+            df_convertible_bond['proportion']=df_convertible_bond['delta']
             processed_dfs.append(df_convertible_bond)
 
         # Process ETF if not empty
@@ -269,6 +270,7 @@ class portfolio_calculation:
             df_etf['risk_mkt_value_yes'] = df_etf['pre_close'] * df_etf['multiplier'] * df_etf['delta_yes']
             df_etf['mkt_value'] = df_etf['risk_mkt_value']
             df_etf['mkt_value_yes'] = df_etf['risk_mkt_value_yes']
+            df_etf['proportion'] =1
             processed_dfs.append(df_etf)
         # Process future if not empty
         if not self.df_future.empty:
@@ -285,6 +287,7 @@ class portfolio_calculation:
             df_future['risk_mkt_value_yes'] = df_future['pre_close'] * df_future['multiplier'] * df_future['delta_yes']
             df_future['mkt_value'] = df_future['risk_mkt_value']
             df_future['mkt_value_yes'] = df_future['risk_mkt_value_yes']
+            df_future['proportion'] = 1
             processed_dfs.append(df_future)
         else:
             df_future = pd.DataFrame()
@@ -316,6 +319,7 @@ class portfolio_calculation:
             df_stock['risk_mkt_value_yes'] = df_stock['pre_close'] * df_stock['multiplier'] * df_stock['delta_yes']
             df_stock['mkt_value'] = df_stock['risk_mkt_value']
             df_stock['mkt_value_yes'] = df_stock['risk_mkt_value_yes']
+            df_stock['proportion'] = 1
             processed_dfs.append(df_stock)
         # If no DataFrames were processed, return empty DataFrame
         if not processed_dfs:
@@ -467,6 +471,7 @@ class portfolio_calculation:
             portfolio_mktvalue_yes = abs(df_holding['risk_mkt_value_yes']).sum()
             portfolio_return = portfolio_profit / portfolio_mktvalue_yes
             portfolio_riskvalue = df_holding['risk_mkt_value'].sum()
+            portfolio_riskvalue_yes = df_holding['risk_mkt_value_yes'].sum()
             if index_type != None:
                 try:
                     code = index_mapping(index_type, 'code')
@@ -480,7 +485,7 @@ class portfolio_calculation:
             account_money = account_money + portfolio_profit
             portfolio_dic = {'valuation_date': [date], 'portfolio_profit': [portfolio_profit],
                              'portfolio_return': [portfolio_return], 'paper_return': [paper_return],
-                             'portfolio_mktvalue': [portfolio_riskvalue], 'turnover_ratio': [turnover_ratio],
+                             'portfolio_mktvalue': [portfolio_riskvalue],'portfolio_mktvalue_yes': [portfolio_riskvalue_yes], 'turnover_ratio': [turnover_ratio],
                              'turnover_return_cost': [turnover_return_cost], 'turnover_cost': [turnover_cost],
                              'index_return': [index_return], 'excess_paper_return': [excess_paper_return],
                              'excess_portfolio_return': [excess_portfolio_return], 'account_money': [account_money]}
