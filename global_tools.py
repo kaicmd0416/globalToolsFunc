@@ -269,8 +269,10 @@ def index_weight_withdraw(index_type, available_date):
         print(f"未找到指数 {index_type} 在 {available_date} 的权重数据")
         return pd.DataFrame()
         
-    if 'code' in df.columns and 'weight' in df.columns:
+    if 'code' in df.columns and 'weight' in df.columns and index_type!=None:
         df = df[['code', 'weight']]
+    elif 'code' in df.columns and 'weight' in df.columns and index_type==None:
+        df=df[['code','weight','organization']]
     else:
         print(f"数据列不完整，期望的列: code, weight，实际的列: {df.columns.tolist()}")
         return pd.DataFrame()

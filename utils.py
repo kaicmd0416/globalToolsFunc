@@ -11,6 +11,9 @@ from dbutils.pooled_db import PooledDB
 from datetime import time
 from scipy.io import loadmat
 global source, db_pools
+from global_dic import get as glv
+import warnings
+warnings.filterwarnings('ignore')
 # 初始化数据库连接池字典
 db_pools = {}
 
@@ -374,84 +377,54 @@ def contains_chinese(text):
         if '\u4e00' <= char <= '\u9fff':
             return True
     return False
-
-def index_mapping(index_name, type='code'):
-    """
-    指数名称映射 - 支持双向映射
-    
-    支持中文名称到代码的映射，以及代码到简称的映射
-    
-    Args:
-        index_name (str): 指数中文名称或代码
-        type (str, optional): 返回类型，仅在中文名称输入时有效
-
-    Returns:
-        str: 指数代码、简称或中文名称
-    """
-    # 如果输入包含中文，执行原有逻辑（中文名称 -> 代码/简称）
+#初始化index_info
+inputpath_indexinfo=glv('index_info')
+df_info = data_getting_glb(inputpath_indexinfo)
+def index_mapping(index_name,type='code'):
+    output=None
     if contains_chinese(index_name):
-        if index_name == '上证50':
-            if type == 'shortname':
-                return 'sz50'
-            else:
-                return '000016.SH'
-        elif index_name == '沪深300':
-            if type == 'shortname':
-                return 'hs300'
-            else:
-                return '000300.SH'
-        elif index_name == '中证500':
-            if type == 'shortname':
-                return 'zz500'
-            else:
-                return '000905.SH'
-        elif index_name == '中证1000':
-            if type == 'shortname':
-                return 'zz1000'
-            else:
-                return '000852.SH'
-        elif index_name == '中证2000':
-            if type == 'shortname':
-                return 'zz2000'
-            else:
-                return '932000.CSI'
-        elif index_name == '国证2000':
-            if type == 'shortname':
-                return 'gz2000'
-            else:
-                return '399303.SZ'
-        elif index_name == '中证A500':
-            if type == 'shortname':
-                return 'zzA500'
-            else:
-                return '000510.CSI'
+        if type=='code':
+            try:
+                output=df_info[df_info['chi_name']==index_name]['index_code'].tolist()[0]
+            except:
+                print(f"{index_name} not found in index_info")
+        elif type=='shortname':
+            try:
+                output=df_info[df_info['chi_name']==index_name]['short_name'].tolist()[0]
+            except:
+                print(f"{index_name} not found in index_info")
         else:
-            print(f'{index_name} 不存在')
-            return None
-    # 如果输入不包含中文，根据type参数决定返回类型
+            print(f"{index_name} already chi_name")
     else:
-        # 当type='code'时，返回shortname；当type='shortname'时，返回中文名称
-        if type == 'shortname':
-            # 返回shortname
-            if index_name == '000016.SH':
-                return 'sz50'
-            elif index_name == '000300.SH':
-                return 'hs300'
-            elif index_name == '000905.SH':
-                return 'zz500'
-            elif index_name == '000852.SH':
-                return 'zz1000'
-            elif index_name == '932000.CSI':
-                return 'zz2000'
-            elif index_name == '399303.SZ':
-                return 'gz2000'
-            elif index_name == '000510.CSI':
-                return 'zzA500'
+
+        if '.' in index_name:
+            if type == 'chi_name':
+                try:
+                    output = df_info[df_info['index_code'] == index_name]['chi_name'].tolist()[0]
+                except:
+                    print(f"{index_name} not found in index_info")
+            elif type == 'shortname':
+                try:
+                    output = df_info[df_info['index_code'] == index_name]['short_name'].tolist()[0]
+                except:
+                    print(f"{index_name} not found in index_info")
             else:
-                print(f'{index_name} 不存在')
-                return None
+                print(f"{index_name} already index_code")
         else:
-            return index_name
+            if type == 'chi_name':
+                try:
+                    output = df_info[df_info['short_name'] == index_name]['chi_name'].tolist()[0]
+                except:
+                    print(f"{index_name} not found in index_info")
+            elif type == 'indexcode':
+                try:
+                    output = df_info[df_info['short_name'] == index_name]['index_code'].tolist()[0]
+                except:
+                    print(f"{index_name} not found in index_info")
+            else:
+                print(f"{index_name} already short_name")
+    return output
+
 
 # ============= 文件操作函数 =============
 def readcsv(filepath, dtype=None, index_col=None):

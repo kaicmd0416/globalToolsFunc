@@ -35,8 +35,11 @@ class mktData_sql:
         """
         inputpath_index = glv('input_indexcomponent')
         # 根据是否包含中文决定short_name的赋值
-        short_name = index_mapping(index_type, 'shortname')
-        inputpath_index = inputpath_index + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
+        if index_type!=None:
+            short_name = index_mapping(index_type, 'shortname')
+            inputpath_index = inputpath_index + f" WHERE valuation_date='{available_date}' AND organization='{short_name}'"
+        else:
+            inputpath_index = inputpath_index + f" WHERE valuation_date='{available_date}'"
         df = data_getting_glb(inputpath_index)
         return df
 
@@ -58,9 +61,10 @@ class mktData_sql:
         """
         # 根据是否包含中文决定short_name的赋值
 
-        code = index_mapping(index_type, 'code')
+
         inputpath_indexreturn = glv('index_data')
         if index_type != None:
+             code = index_mapping(index_type, 'code')
              inputpath_indexreturn = inputpath_indexreturn + f" WHERE valuation_date Between'{start_date}' AND '{end_date}' AND code='{code}'"
              df_final = data_getting_glb(inputpath_indexreturn)
              try:
@@ -102,11 +106,11 @@ class mktData_sql:
         # 根据是否包含中文决定short_name的赋值
         date = datetime.today()
         date = strdate_transfer(date)
-        code = index_mapping(index_type, 'code')
-        if code == '000510.CSI':
-            code = '000510.SH'
         inputpath_indexreturn = glv('input_indexreturn_realtime')
         if index_type != None:
+            code = index_mapping(index_type, 'code')
+            if code == '000510.CSI':
+                code = '000510.SH'
             inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index' AND code='{code}' "
         else:
             inputpath_indexreturn = inputpath_indexreturn + f" WHERE  type='index'"

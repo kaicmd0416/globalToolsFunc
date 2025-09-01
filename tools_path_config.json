@@ -165,6 +165,13 @@
             "folder_type": "input_folder",
             "sql_sheet": "data_index",
             "database": "data_prepared_new"
+        },
+        {
+            "data_type": "index_info",
+            "folder_name": "data_other\\index_mapping.csv",
+            "folder_type": "input_folder",
+            "sql_sheet": "index_info",
+            "database": "data_prepared_new"
         }
     ]
 } 
