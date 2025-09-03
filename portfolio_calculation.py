@@ -372,6 +372,7 @@ class portfolio_calculation:
             df_holding[df_holding['class'].isin(['stock', 'etf', 'convertible_bond'])]['quantity'] / \
             df_holding[df_holding['class'].isin(['stock', 'etf', 'convertible_bond'])]['multiplier']
             df_holding['weight'] = (df_holding['quantity'] * df_holding['mkt_value']) / abs(df_holding['mkt_value'] * df_holding['quantity']).sum()
+            df_holding.fillna(0,inplace=True)
         return df_holding
     
     def turnover_calculate(self, df_holding_initial, df_holding_ori):
@@ -456,7 +457,8 @@ class portfolio_calculation:
             df_missing = df_holding[df_holding.isna().any(axis=1)]
             if len(df_missing) > 0:
                 df_holding.dropna(inplace=True)
-                print(df_missing['code'].tolist())
+                print(df_missing)
+                #print(df_missing['code'].tolist())
             df_holding['price_difference'] = df_holding['close'] - df_holding['pre_close']
             df_holding['pct_chg'] = df_holding['price_difference'] / df_holding['pre_close']
             df_holding['profit'] = df_holding['price_difference'] * df_holding['quantity'] * df_holding['multiplier']

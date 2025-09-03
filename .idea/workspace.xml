@@ -42,7 +42,7 @@
     "Python.portfolio_calculation.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "main",
-    "last_opened_file_path": "D:/code_new/Tracking",
+    "last_opened_file_path": "D:/globalToolsFunc",
     "settings.editor.selected.configurable": "preferences.lookFeel"
   }
 }]]></component>
@@ -235,6 +235,11 @@
           <url>file://$PROJECT_DIR$/utils.py</url>
           <line>465</line>
           <option name="timeStamp" value="7" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/portfolio_calculation.py</url>
+          <line>459</line>
+          <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
