@@ -210,7 +210,71 @@ class mktData_sql:
                 print(f"输入的{columns}需要在{type_list}列里面")
                 df = pd.DataFrame()
             return df
-    
+
+    def hstockData_withdraw_sql_daily(self, start_date=None, end_date=None, columns=list):
+        """
+        从SQL数据库获取股票日频数据
+
+        获取指定时间范围内的股票价格和收益率数据
+
+        Args:
+            start_date (str, optional): 开始日期，格式为'YYYY-MM-DD'
+            end_date (str, optional): 结束日期，格式为'YYYY-MM-DD'
+            columns (list, optional): 需要的列名列表，默认为空列表表示获取所有列
+
+        Returns:
+            pandas.DataFrame: 股票日频数据
+        """
+        inputpath_stockclose = glv('input_hstockdata')
+        inputpath_stockclose = inputpath_stockclose + f" WHERE valuation_date Between'{start_date}' AND '{end_date}'"
+        df_final = data_getting_glb(inputpath_stockclose)
+        # 确保数据按股票代码和日期排序
+        df_final = df_final.sort_values(['code', 'valuation_date'])
+        if not columns:
+            return df_final
+        else:
+            try:
+                df_final = df_final[['valuation_date', 'code'] + columns]
+            except:
+                type_list = df_final.columns.tolist()
+                print(f"输入的{columns}需要在{type_list}列里面")
+                df_final = pd.DataFrame()
+            return df_final
+
+    def hstockData_withdraw_sql_realtime(self, columns=list):
+        """
+        从SQL数据库获取股票实时数据
+
+        获取当前交易日的股票实时价格和收益率数据
+
+        Args:
+            columns (list, optional): 需要的列名列表，默认为空列表
+
+        Returns:
+            pandas.DataFrame: 股票实时数据
+        """
+        inputpath_stockreturn = glv('input_hstockclose_realtime')
+        inputpath_stockreturn = inputpath_stockreturn + f" WHERE type='hkstock'"
+        df = data_getting_glb(inputpath_stockreturn)
+        df.rename(columns={'ret': 'pct_chg'}, inplace=True)
+        df = df[['valuation_date', 'code', 'close', 'pre_close', 'pct_chg']]
+        df.loc[df['close'] == 0, ['close']] = df[df['close'] == 0]['pre_close'].tolist()
+        df[['adjfactor_jy', 'adjfactor_wind']] = 1
+        date = datetime.today()
+        date = strdate_transfer(date)
+        df['valuation_date'] = date
+        if not columns:
+            df['pct_chg'] = df['pct_chg'] / 100
+            return df
+        else:
+            try:
+                df['pct_chg'] = df['pct_chg'] / 100
+                df = df[['valuation_date', 'code'] + columns]
+            except:
+                type_list = df.columns.tolist()
+                print(f"输入的{columns}需要在{type_list}列里面")
+                df = pd.DataFrame()
+            return df
     # ============= etf数据处理函数 =============
     def etfData_withdraw_sql_daily(self, start_date=None, end_date=None, columns=list):
         """

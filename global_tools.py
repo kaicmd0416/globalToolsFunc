@@ -361,6 +361,35 @@ def stockData_withdraw(start_date=None, end_date=None, columns=None, realtime=Fa
             df = mkts.stockData_withdraw_sql_daily(start_date, end_date, columns)
     return df
 
+
+def hstockData_withdraw(start_date=None, end_date=None, columns=None, realtime=False):
+    """
+    提取股票数据
+
+    获取指定时间范围内的股票数据
+
+    Args:
+        start_date (str, optional): 开始日期
+        end_date (str, optional): 结束日期
+        columns (list, optional): 需要的列名
+        realtime (bool, optional): 是否为实时数据，默认为False
+
+    Returns:
+        pandas.DataFrame: 股票数据
+    """
+    mkts = mktData_sql()
+    mktl = mktData_local()
+    if realtime == True:
+        if source == 'local':
+            df = mktl.hstockData_withdraw_local_realtime(columns)
+        else:
+            df = mkts.hstockData_withdraw_sql_realtime(columns)
+    else:
+        if source == 'local':
+            df = mktl.hstockData_withdraw_local_daily(start_date, end_date, columns)
+        else:
+            df = mkts.hstockData_withdraw_sql_daily(start_date, end_date, columns)
+    return df
 # ============= etf数据处理函数 =============
 def etfData_withdraw(start_date=None, end_date=None, columns=None, realtime=False):
     """
@@ -582,13 +611,13 @@ def weight_df_datecheck(df):
             print(f"{portfolio_name,date_difference}没有holding")
             raise ValueError
     if 'portfolio_name' not in df.columns.tolist():
-        check(df)
+        check(None,df)
     else:
         for portfolio_name in df['portfolio_name'].unique().tolist():
             slice_df = df[df['portfolio_name'] == portfolio_name]
             check(portfolio_name,slice_df)
 
-def portfolio_analyse(df_holding=pd.DataFrame(), account_money=10000000, cost_stock=0.00085, cost_etf=0.0003, cost_future=0.00006, cost_option=0.01, cost_convertiblebond=0.0007, realtime=False, weight_standardize=True):
+def portfolio_analyse(df_holding=pd.DataFrame(), account_money=10000000, cost_stock=0.00085, cost_etf=0.0003, cost_future=0.00006, cost_option=0.01, cost_convertiblebond=0.0007, realtime=False, weight_standardize=False):
     """
     投资组合分析主函数
     
@@ -617,6 +646,7 @@ def portfolio_analyse(df_holding=pd.DataFrame(), account_money=10000000, cost_st
         if not df_holding.empty:
             df_holding = weight_df_standardization(df_holding)
     df_stock = stockData_withdraw(start_date, end_date, ['close', 'pre_close'], realtime)
+    df_hstock=hstockData_withdraw(start_date, end_date, ['close', 'pre_close'], realtime)
     if realtime == True:
         df_future = futureData_withdraw(start_date, end_date, ['close', 'pre_settle', 'multiplier'],
                                         realtime)
@@ -631,7 +661,7 @@ def portfolio_analyse(df_holding=pd.DataFrame(), account_money=10000000, cost_st
     df_convertible_bond = cbData_withdraw(start_date, end_date, ['close', 'pre_close', 'delta', 'delta_yes'],
                                           realtime)
     df_index = indexData_withdraw(None, start_date, end_date, ['pct_chg'], realtime)
-    pc = portfolio_calculation(df_stock, df_etf, df_option, df_future,
+    pc = portfolio_calculation(df_stock, df_hstock,df_etf, df_option, df_future,
                                df_convertible_bond, df_index, account_money, cost_stock, cost_etf, cost_future,
                                cost_option, cost_convertiblebond, realtime)
     if 'portfolio_name' not in df_holding.columns.tolist():

@@ -69,6 +69,20 @@
             "database": "data_prepared_new"
         },
         {
+            "data_type": "input_hstockdata",
+            "folder_name": "data_hkstock",
+            "folder_type": "input_folder",
+            "sql_sheet": "data_hkstock",
+            "database": "data_prepared_new"
+        },
+        {
+            "data_type": "input_hstockclose_realtime",
+            "folder_name": "realtime_data\\realtime_data.xlsx",
+            "folder_type": "input_folder",
+            "sql_sheet": "realtime_data",
+            "database": "data_prepared_new"
+        },
+        {
             "data_type": "input_stockclose_realtime",
             "folder_name": "realtime_data\\realtime_data.xlsx",
             "folder_type": "input_folder",

@@ -23,7 +23,7 @@ class portfolio_calculation:
         - pre_close: Previous day's closing price
     """
     
-    def __init__(self, df_stock=pd.DataFrame(), df_etf=pd.DataFrame(), df_option=pd.DataFrame(),
+    def __init__(self, df_stock=pd.DataFrame(),df_hstock=pd.DataFrame(), df_etf=pd.DataFrame(), df_option=pd.DataFrame(),
                  df_future=pd.DataFrame(), df_convertible_bond=pd.DataFrame(), df_index=pd.DataFrame(), 
                  account_money=None, cost_stock=None, cost_etf=None, cost_future=None, cost_option=None, 
                  cost_cb=None, realtime=False):
@@ -46,6 +46,7 @@ class portfolio_calculation:
             realtime (bool, optional): 是否为实时数据，默认为False
         """
         self.df_stock = df_stock
+        self.df_hstock=df_hstock
         self.df_etf = df_etf
         self.df_option = df_option
         self.df_future = df_future
@@ -101,6 +102,7 @@ class portfolio_calculation:
         # Check market data formats
         market_dfs = {
             'stock': self.df_stock,
+            'hstock': self.df_hstock
         }
         required_columns = ['valuation_date', 'code', 'close', 'pre_close']
         for df_name, df in market_dfs.items():
@@ -321,6 +323,21 @@ class portfolio_calculation:
             df_stock['mkt_value_yes'] = df_stock['risk_mkt_value_yes']
             df_stock['proportion'] = 1
             processed_dfs.append(df_stock)
+        if not self.df_hstock.empty:
+            df_hstock = self.df_hstock.copy()
+            df_hstock = df_hstock[required_column]
+            df_hstock['class'] = 'h_stock'
+            df_hstock['multiplier'] = 100
+            df_hstock['delta'] = 1
+            df_hstock['delta_yes'] = 1
+            df_hstock = self.df_processing(df_hstock)
+            df_hstock['risk_mkt_value'] = df_hstock['close'] * df_hstock['multiplier'] * df_hstock['delta']
+            df_hstock['risk_mkt_value_yes'] = df_hstock['pre_close'] * df_hstock['multiplier'] * df_hstock['delta_yes']
+            df_hstock['mkt_value'] = df_hstock['risk_mkt_value']
+            df_hstock['mkt_value_yes'] = df_hstock['risk_mkt_value_yes']
+            df_hstock['proportion'] = 1
+            df_hstock.replace(0,None,inplace=True)
+            processed_dfs.append(df_hstock)
         # If no DataFrames were processed, return empty DataFrame
         if not processed_dfs:
             return pd.DataFrame()
@@ -368,9 +385,9 @@ class portfolio_calculation:
                 df_holding['quantity'] = df_holding['money'] / df_holding['mkt_value_yes']
                 df_holding['quantity'] = df_holding['quantity'].round(0)
         if 'quantity' in df_holding.columns.tolist() and 'weight' not in df_holding.columns.tolist():
-            df_holding.loc[df_holding['class'].isin(['stock', 'etf', 'convertible_bond']), 'quantity'] = \
-            df_holding[df_holding['class'].isin(['stock', 'etf', 'convertible_bond'])]['quantity'] / \
-            df_holding[df_holding['class'].isin(['stock', 'etf', 'convertible_bond'])]['multiplier']
+            df_holding.loc[df_holding['class'].isin(['h_stock','stock', 'etf', 'convertible_bond']), 'quantity'] = \
+            df_holding[df_holding['class'].isin(['h_stock','stock', 'etf', 'convertible_bond'])]['quantity'] / \
+            df_holding[df_holding['class'].isin(['h_stock','stock', 'etf', 'convertible_bond'])]['multiplier']
             df_holding['weight'] = (df_holding['quantity'] * df_holding['mkt_value']) / abs(df_holding['mkt_value'] * df_holding['quantity']).sum()
             df_holding.fillna(0,inplace=True)
         return df_holding
@@ -408,6 +425,12 @@ class portfolio_calculation:
         # Calculate turnover cost and return cost for each class
         df_final.loc[df_final['class'] == 'stock', 'cost'] = abs(df_final[df_final['class'] == 'stock']['quantity_difference']) * df_final[df_final['class'] == 'stock']['risk_mkt_value_yes'] * self.cost_stock
         df_final.loc[df_final['class'] == 'stock', 'return_cost'] = abs(df_final[df_final['class'] == 'stock']['weight_difference']) * self.cost_stock
+
+        df_final.loc[df_final['class'] == 'h_stock', 'cost'] = abs(
+            df_final[df_final['class'] == 'h_stock']['quantity_difference']) * df_final[df_final['class'] == 'h_stock'][
+                                                                 'risk_mkt_value_yes'] * self.cost_stock
+        df_final.loc[df_final['class'] == 'h_stock', 'return_cost'] = abs(
+            df_final[df_final['class'] == 'h_stock']['weight_difference']) * self.cost_stock
 
         df_final.loc[df_final['class'] == 'etf', 'cost'] = abs(df_final[df_final['class'] == 'etf']['quantity_difference']) * df_final[df_final['class'] == 'etf']['risk_mkt_value_yes'] * self.cost_etf
         df_final.loc[df_final['class'] == 'etf', 'return_cost'] = abs(df_final[df_final['class'] == 'etf']['weight_difference']) * self.cost_etf
@@ -452,13 +475,15 @@ class portfolio_calculation:
                 index_type = None
             else:
                 index_type = df_holding['index_type'].unique().tolist()[0]
+            df_holding['close'].replace(0, None, inplace=True)
             df_holding = self.df_holding_processing(df_holding, account_money)
             turnover_ratio, turnover_return_cost, turnover_cost = self.turnover_calculate(df_initial_holding, df_holding)
+            df_holding['close'].replace(0, None, inplace=True)
             df_missing = df_holding[df_holding.isna().any(axis=1)]
             if len(df_missing) > 0:
                 df_holding.dropna(inplace=True)
+                print('以下数据存在问题')
                 print(df_missing)
-                #print(df_missing['code'].tolist())
             df_holding['price_difference'] = df_holding['close'] - df_holding['pre_close']
             df_holding['pct_chg'] = df_holding['price_difference'] / df_holding['pre_close']
             df_holding['profit'] = df_holding['price_difference'] * df_holding['quantity'] * df_holding['multiplier']
