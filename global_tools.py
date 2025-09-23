@@ -595,27 +595,55 @@ def weight_df_datecheck(df):
     """
     检查权重数据的日期完整性
     
-    检查DataFrame中的日期是否连续，如果不连续则抛出异常
+    检查DataFrame中的日期是否连续，如果不连续则用最近交易日的数据补充缺失日期
     
     Args:
         df (pandas.DataFrame): 包含valuation_date列的数据框
+    
+    Returns:
+        pandas.DataFrame: 补充缺失日期后的数据框
     """
-    def check(portfolio_name,df):
+    def check_and_fill(portfolio_name, df):
         date_list_df = df['valuation_date'].unique().tolist()
         date_list_df.sort()
         start_date = date_list_df[0]
         end_date = date_list_df[-1]
         date_list = working_days_list(start_date, end_date)
         date_difference = list(set(date_list) - set(date_list_df))
+        
         if len(date_difference) > 0:
-            print(f"{portfolio_name,date_difference}没有holding")
-            raise ValueError
+            print(f"{portfolio_name,date_difference}没有holding，正在用最近交易日数据补充")
+            
+            # 为每个缺失日期找到最近的交易日数据
+            for missing_date in date_difference:
+                # 找到缺失日期之前最近的交易日
+                available_dates = [d for d in date_list_df if d < missing_date]
+                if available_dates:
+                    nearest_date = max(available_dates)
+                    # 获取最近交易日的数据
+                    nearest_data = df[df['valuation_date'] == nearest_date].copy()
+                    # 将日期更新为缺失日期
+                    nearest_data['valuation_date'] = missing_date
+                    # 添加到原数据框
+                    df = pd.concat([df, nearest_data], ignore_index=True)
+                else:
+                    print(f"警告：无法为日期 {missing_date} 找到可用的历史数据")
+        
+        return df
+    
+    # 处理没有portfolio_name列的情况
     if 'portfolio_name' not in df.columns.tolist():
-        check(None,df)
+        df = check_and_fill(None, df)
     else:
+        # 处理有portfolio_name列的情况
+        result_dfs = []
         for portfolio_name in df['portfolio_name'].unique().tolist():
             slice_df = df[df['portfolio_name'] == portfolio_name]
-            check(portfolio_name,slice_df)
+            filled_df = check_and_fill(portfolio_name, slice_df)
+            result_dfs.append(filled_df)
+        df = pd.concat(result_dfs, ignore_index=True)
+    
+    return df
 
 def portfolio_analyse(df_holding=pd.DataFrame(), account_money=10000000, cost_stock=0.00085, cost_etf=0.0003, cost_future=0.00006, cost_option=0.01, cost_convertiblebond=0.0007, realtime=False, weight_standardize=False):
     """
@@ -637,7 +665,7 @@ def portfolio_analyse(df_holding=pd.DataFrame(), account_money=10000000, cost_st
     Returns:
         tuple: (df_info, df_detail) - 投资组合汇总信息和详细数据
     """
-    weight_df_datecheck(df_holding)
+    df_holding=weight_df_datecheck(df_holding)
     date_list = df_holding['valuation_date'].unique().tolist()
     date_list.sort()
     start_date = date_list[0]
